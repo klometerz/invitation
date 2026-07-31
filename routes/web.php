@@ -3,6 +3,7 @@
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\WeddingController;
+use App\Models\Invitation;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,7 +12,6 @@ Route::get('/', function () {
 });
 Route::get('/api/guests/{code}', [GuestController::class, 'show']);
 Route::post('/rsvp/{code}', [GuestController::class, 'updateRsvp']);
-Route::get('/', [WeddingController::class, 'index'])->name('wedding.index');
 
 // Grouping biar rapi, nanti bisa lo kasih middleware 'auth' kalau mau diproteksi
 Route::prefix('admin')->group(function () {
@@ -30,3 +30,14 @@ Route::prefix('admin')->group(function () {
 
 Route::get('/guests/print-labels', [GuestController::class, 'printLabels'])->name('admin.guests.print');
 });
+
+// routes/web.php
+Route::get('/v/{slug}', function ($slug) {
+    $invitation = Invitation::where('slug', $slug)->with('theme')->firstOrFail();
+    
+    // Kirim data konten dan path tema ke Inertia
+    return Inertia::render($invitation->theme->svelte_path, [
+        'content' => $invitation->content,
+        'guests' => request('to') // Misal: /v/maulia-kahfi?to=Budi
+    ]);
+})->name('wedding.index');

@@ -8,10 +8,16 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow; // Kalau excel ada header-nya
 
 class GuestsImport implements ToModel {
+
+    public function __construct($invitationId)
+{
+    $this->invitationId = $invitationId;
+}
     public function model(array $row) {
         return new Guest([
             'name' => $row[1], // col2: Nama
             'city' => $row[2], // col3: Kota
+            'invitation_id' => $this->invitationId,
         ]);
     }
 }

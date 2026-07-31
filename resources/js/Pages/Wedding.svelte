@@ -10,8 +10,8 @@
     import MusicPlayer from "../Components/MusicPlayer.svelte";
     import ThanksSection from "../Components/Sections/ThankSection.svelte";
 
-    // 1. TANGKAP DATA DARI CONTROLLER (INERTIA PROPS)
-    let { guestData, galleryData } = $props();
+    // 1. TANGKAP DATA DINAMIS DARI CONTROLLER
+    let { invitation, content, guestData } = $props();
 
     let appState = $state("curtain");
     let direction = $state("forward");
@@ -31,7 +31,6 @@
     let currentSection = $derived(sections[currentSectionIndex]);
     let showArrows = $state(false);
 
-    // Reset Lock tiap ganti halaman
     $effect(() => {
         currentSectionIndex;
         isInnerScrolling = false;
@@ -47,8 +46,6 @@
     }
 
     onMount(() => {
-        // Kita gak butuh fetch manual lagi Bre,
-        // karena data udah ada di props {guestData}
         curtainOpen = true;
     });
 
@@ -142,7 +139,10 @@
             {/each}
         </div>
 
-        <MusicPlayer bind:this={musicRef} url="/music/background.mp3" />
+        <MusicPlayer
+            bind:this={musicRef}
+            url={content?.hero?.music_url || "/music/background.mp3"}
+        />
 
         {#if showArrows && !isAnimating}
             {#if currentSectionIndex > 0}
@@ -167,29 +167,48 @@
         >
             {#if currentSection === "welcome"}
                 <div class="section" in:fade={{ duration: 1000 }}>
-                    <div class="welcome-hero">
-                        <p class="subtitle">THE WEDDING CELEBRATION</p>
+                    <div
+                        class="welcome-hero"
+                        style="background-image: url({content?.hero
+                            ?.background_url})"
+                    >
+                        <p class="subtitle">
+                            {content?.hero?.title || "THE WEDDING CELEBRATION"}
+                        </p>
                         <div class="names-box">
-                            <h1 class="name-main">Maul</h1>
+                            <h1 class="name-main">
+                                {content?.mempelai?.wanita?.nama_panggilan ||
+                                    "Maul"}
+                            </h1>
                             <div class="ampersand">
                                 <div class="line"></div>
                                 <span>&</span>
                                 <div class="line"></div>
                             </div>
-                            <h1 class="name-main">Kahfi</h1>
+                            <h1 class="name-main">
+                                {content?.mempelai?.pria?.nama_panggilan ||
+                                    "Kahfi"}
+                            </h1>
                         </div>
                         <div class="date-loc">
-                            <p class="date">SABTU, 24 MEI 2026</p>
+                            <p class="date">
+                                {content?.hero?.date_formatted ||
+                                    "SABTU, 24 MEI 2026"}
+                            </p>
                             <div class="ornament">
                                 <div class="diamond"></div>
                             </div>
-                            <p class="loc">CIREBON, INDONESIA</p>
+                            <p class="loc">
+                                {content?.acara?.[0]?.lokasi ||
+                                    "CIREBON, INDONESIA"}
+                            </p>
                         </div>
                     </div>
                 </div>
             {:else if currentSection === "story"}
                 <div class="section" in:fade>
                     <StorySection
+                        stories={content?.stories || []}
                         bind:scrollProgress={sectionScrollProgress}
                         bind:isLocked={isInnerScrolling}
                     />
@@ -197,6 +216,7 @@
             {:else if currentSection === "event"}
                 <div class="section" in:fade>
                     <EventSection
+                        events={content?.acara || []}
                         bind:scrollProgress={sectionScrollProgress}
                         bind:isLocked={isInnerScrolling}
                     />
@@ -204,18 +224,18 @@
             {:else if currentSection === "gallery"}
                 <div class="section" in:fade>
                     <GallerySection
-                        {galleryData}
+                        galleryData={content?.gallery || []}
                         bind:scrollProgress={sectionScrollProgress}
                         bind:isLocked={isInnerScrolling}
                     />
                 </div>
             {:else if currentSection === "rsvp"}
                 <div class="section" in:fade>
-                    <RSVPSection {guestData} />
+                    <RSVPSection {guestData} invitationId={invitation?.id} />
                 </div>
             {:else if currentSection === "thanks"}
                 <div class="section" in:fade>
-                    <ThanksSection {guestData} />
+                    <ThanksSection {guestData} names={content?.mempelai} />
                 </div>
             {/if}
         </div>

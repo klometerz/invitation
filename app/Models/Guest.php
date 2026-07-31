@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class Guest extends Model {
     // TAMBAHIN is_rsvp dan attendance di sini
-    protected $fillable = ['name', 'city', 'guest_code', 'is_rsvp', 'attendance'];
+    protected $fillable = ['invitation_id', 'name', 'city', 'guest_code', 'is_rsvp', 'attendance'];
 
     protected static function booted() {
         static::creating(function ($guest) {
@@ -15,4 +15,9 @@ class Guest extends Model {
             $guest->guest_code = Str::slug($guest->name) . '-' . Str::lower(Str::random(5));
         });
     }
+    // Di dalam class Guest extends Model
+public function invitation(): BelongsTo
+{
+    return $this->belongsTo(Invitation::class);
+}
 }

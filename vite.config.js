@@ -15,7 +15,7 @@ export default defineConfig({
     server: {
         host: '0.0.0.0', // Biar bisa diakses dari IP mana pun
         hmr: {
-            host: '10.159.173.90', // Masukin IP Laptop lo di sini
+            host: 'localhost', // Masukin IP Laptop lo di sini
         },
     },
 });
