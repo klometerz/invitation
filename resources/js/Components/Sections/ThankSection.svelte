@@ -1,42 +1,49 @@
 <script>
-    import { fade } from "svelte/transition";
+    let { guestData = null, names = null } = $props();
 
-    let copied = $state(false);
+    let copiedIndex = $state(null);
 
-    function copyToClipboard(text) {
-        // Cek apakah navigator.clipboard tersedia (hanya di HTTPS)
+    // Data rekening — tinggal edit di sini
+    const bankAccounts = [
+        {
+            bank: "BANK MANDIRI",
+            number: "1340030819584",
+            holder: "M KAHFI KRESNOTUTUKO",
+        },
+        {
+            bank: "BANK BCA",
+            number: "3610584399",
+            holder: "MAULIA NUR RAHMA",
+        },
+    ];
+
+    function copyToClipboard(text, index) {
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard
                 .writeText(text)
-                .then(() => {
-                    triggerSuccess();
-                })
+                .then(() => triggerSuccess(index))
                 .catch((err) => {
                     console.error("Gagal copy: ", err);
-                    fallbackCopy(text);
+                    fallbackCopy(text, index);
                 });
         } else {
-            // Cara gerilya buat HTTP / Localhost
-            fallbackCopy(text);
+            fallbackCopy(text, index);
         }
     }
 
-    function fallbackCopy(text) {
+    function fallbackCopy(text, index) {
         const textArea = document.createElement("textarea");
         textArea.value = text;
-
-        // Pastiin textarea-nya nggak kelihatan tapi ada di DOM
         textArea.style.position = "fixed";
         textArea.style.left = "-9999px";
         textArea.style.top = "0";
         document.body.appendChild(textArea);
-
         textArea.focus();
         textArea.select();
 
         try {
             const successful = document.execCommand("copy");
-            if (successful) triggerSuccess();
+            if (successful) triggerSuccess(index);
         } catch (err) {
             console.error("Fallback gagal: ", err);
             alert("Gagal menyalin, silakan salin manual Bre.");
@@ -45,126 +52,120 @@
         document.body.removeChild(textArea);
     }
 
-    function triggerSuccess() {
-        copied = true;
-        setTimeout(() => (copied = false), 2000);
+    function triggerSuccess(index) {
+        copiedIndex = index;
+        setTimeout(() => (copiedIndex = null), 2000);
     }
 </script>
 
-<div class="thanks-viewport">
-    <section class="snap-section">
-        <div class="thanks-card">
-            <p class="subtitle">CLOSING</p>
-            <h1 class="title-serif">Thank You</h1>
-            <div class="ornament"><div class="diamond"></div></div>
+<div class="thanks-wrapper">
+    <!-- Closing Message -->
+    <div class="thanks-header">
+        <p class="subtitle"></p>
+        <h2 class="title">Terima Kasih</h2>
+        <div class="ornament"><div class="diamond"></div></div>
 
-            <p class="closing-text">
-                Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila
-                Bapak/Ibu/Saudara/i berkenan hadir untuk memberikan doa restu
-                kepada kami.
-            </p>
+        <p class="closing-text">
+            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila
+            Bapak/Ibu/Saudara/i berkenan hadir untuk memberikan doa restu
+            kepada kami.
+        </p>
 
-            <p class="final-wish">Sampai jumpa di hari bahagia kami!</p>
-            <p class="signature">Maul & Kahfi</p>
+        <p class="final-wish">Sampai jumpa di hari bahagia kami!</p>
+        <p class="signature">
+            {names?.wanita?.nama_panggilan || "Maul"} & {names?.pria?.nama_panggilan || "Kahfi"}
+        </p>
+    </div>
 
-            <div class="scroll-hint">
-                <p>GIFT INFORMATION</p>
-                <div class="arrow-down"></div>
-            </div>
-        </div>
-    </section>
+    <!-- Gift Section -->
+    <div class="glass-card">
+        <p class="gift-label">WEDDING GIFT</p>
+        <p class="gift-desc">
+            Bagi keluarga dan kerabat yang ingin memberikan tanda kasih,
+            dapat melalui saluran di bawah ini:
+        </p>
 
-    <section class="snap-section">
-        <div class="thanks-card">
-            <p class="subtitle">WEDDING GIFT</p>
-            <div class="ornament"><div class="diamond"></div></div>
-
-            <p class="gift-desc">
-                Bagi keluarga dan kerabat yang ingin memberikan tanda kasih,
-                dapat melalui saluran di bawah ini:
-            </p>
-
-            <div class="gift-grid">
+        <div class="gift-grid">
+            {#each bankAccounts as account, i}
                 <div class="gift-item">
-                    <p class="bank-label">BANK MANDIRI</p>
-                    <p class="account-number">1340030819584</p>
-                    <p class="account-name">A/N M KAHFI KRESNOTUTUKO</p>
+                    <p class="bank-label">{account.bank}</p>
+                    <p class="account-number">{account.number}</p>
+                    <p class="account-name">A/N {account.holder}</p>
                     <button
                         type="button"
                         class="copy-btn"
-                        class:copied
+                        class:copied={copiedIndex === i}
                         onclick={(e) => {
-                            e.preventDefault(); // Mencegah reload/scroll ga sengaja
-                            copyToClipboard("1234567890");
+                            e.preventDefault();
+                            copyToClipboard(account.number, i);
                         }}
                     >
-                        {copied ? "BERHASIL DISALIN ✓" : "SALIN NOMOR REKENING"}
+                        {copiedIndex === i ? "BERHASIL DISALIN ✓" : "SALIN NOMOR REKENING"}
                     </button>
                 </div>
 
-                <div class="divider-gold"></div>
+                {#if i < bankAccounts.length - 1}
+                    <div class="divider-gold"></div>
+                {/if}
+            {/each}
 
-                <div class="gift-item">
-                    <p class="bank-label">QRIS / SAWERIA</p>
-                    <div class="qr-frame">
-                        <img src="/saweria.png" alt="QR Code" />
-                    </div>
-                    <p class="account-name">MAUL & KAHFI</p>
+            <div class="divider-gold"></div>
+
+            <div class="gift-item">
+                <p class="bank-label">QRIS / SAWERIA</p>
+                <div class="qr-frame">
+                    <img src="/qr-code.png" alt="QR Code" />
                 </div>
+                <p class="account-name">
+                    {names?.wanita?.nama_panggilan || "Maul"} & {names?.pria?.nama_panggilan || "Kahfi"}
+                </p>
             </div>
         </div>
-    </section>
+    </div>
 </div>
 
 <style>
-    .thanks-viewport {
-        height: 100vh;
-        overflow-y: auto;
-        scroll-snap-type: y mandatory;
-        scrollbar-width: none;
-        background: #0a0a0a;
-    }
-    .thanks-viewport::-webkit-scrollbar {
-        display: none;
+    .thanks-wrapper {
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
     }
 
-    .snap-section {
-        height: 100vh;
-        width: 100%;
-        scroll-snap-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-    }
-
-    .thanks-card {
-        width: 100%;
-        max-width: 350px;
+    .thanks-header {
         text-align: center;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        border-radius: 24px;
-        padding: 2.5rem 1.5rem;
-        backdrop-filter: blur(10px);
+        margin-bottom: 2.5rem;
     }
 
-    /* TYPOGRAPHY */
     .subtitle {
-        font-size: 9px;
+        font-size: 10px;
         letter-spacing: 0.5em;
         color: #d4af37;
         margin-bottom: 1rem;
         font-family: "Inter", sans-serif;
+        text-transform: uppercase;
     }
-    .title-serif {
+
+    .title {
         font-family: "Cormorant Garamond", serif;
-        font-size: 3.2rem;
+        font-size: 2.6rem;
         font-weight: 300;
         color: white;
         margin: 0;
     }
+
+    .ornament {
+        display: flex;
+        justify-content: center;
+        margin: 1.25rem 0;
+    }
+
+    .diamond {
+        width: 6px;
+        height: 6px;
+        background: #d4af37;
+        transform: rotate(45deg);
+    }
+
     .closing-text {
         font-size: 13px;
         color: rgba(255, 255, 255, 0.6);
@@ -172,50 +173,78 @@
         margin: 1.5rem 0;
         font-family: "Inter", sans-serif;
     }
+
     .final-wish {
         font-family: "Cormorant Garamond", serif;
         font-style: italic;
         font-size: 1.1rem;
         margin-top: 2rem;
-        opacity: 0.7;
+        color: rgba(255, 255, 255, 0.7);
     }
+
     .signature {
         font-family: "Cormorant Garamond", serif;
-        font-size: 2.2rem;
+        font-size: 2rem;
         color: #d4af37;
         margin-top: 0.5rem;
     }
 
-    /* GIFT STYLES */
-    .gift-desc {
+    /* GIFT CARD */
+    .glass-card {
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 20px;
+        text-align: center;
+    }
+
+    .gift-label {
         font-size: 11px;
+        color: #d4af37;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+        font-family: "Inter", sans-serif;
+    }
+
+    .gift-desc {
+        font-size: 12px;
         color: rgba(255, 255, 255, 0.5);
         margin-bottom: 2rem;
         font-family: "Inter", sans-serif;
+        line-height: 1.6;
     }
+
     .gift-grid {
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 1.25rem;
     }
+
     .bank-label {
         font-size: 10px;
-        opacity: 0.5;
+        opacity: 0.6;
         letter-spacing: 0.2em;
         margin-bottom: 0.4rem;
         font-family: "Inter", sans-serif;
+        color: rgba(255, 255, 255, 0.7);
     }
+
     .account-number {
         font-family: "Cormorant Garamond", serif;
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         color: white;
         margin: 0;
+        letter-spacing: 0.03em;
     }
+
     .account-name {
         font-size: 11px;
         color: #d4af37;
         letter-spacing: 0.1em;
-        margin-top: 0.2rem;
+        margin-top: 0.3rem;
     }
 
     .copy-btn {
@@ -223,13 +252,19 @@
         background: transparent;
         border: 1px solid #d4af37;
         color: #d4af37;
-        padding: 8px 16px;
+        padding: 8px 18px;
         font-size: 9px;
+        letter-spacing: 0.1em;
         border-radius: 50px;
         cursor: pointer;
-        transition: 0.3s;
+        transition: all 0.3s;
         font-family: "Inter", sans-serif;
     }
+
+    .copy-btn:hover {
+        background: rgba(212, 175, 55, 0.1);
+    }
+
     .copy-btn.copied {
         background: #d4af37;
         color: black;
@@ -242,6 +277,7 @@
         margin: 0.8rem auto;
         border-radius: 10px;
     }
+
     .qr-frame img {
         width: 100%;
         display: block;
@@ -251,56 +287,13 @@
         width: 40px;
         height: 1px;
         background: #d4af37;
-        margin: 0.5rem auto;
-        opacity: 0.2;
+        margin: 0.25rem auto;
+        opacity: 0.25;
     }
 
-    /* ORNAMENT */
-    .ornament {
-        display: flex;
-        justify-content: center;
-        margin: 1rem 0;
-        opacity: 0.4;
-    }
-    .diamond {
-        width: 5px;
-        height: 5px;
-        background: #d4af37;
-        transform: rotate(45deg);
-    }
-
-    /* SCROLL HINT */
-    .scroll-hint {
-        margin-top: 2.5rem;
-        opacity: 0.4;
-        animation: bounce 2s infinite;
-    }
-    .scroll-hint p {
-        font-size: 8px;
-        letter-spacing: 0.3em;
-        margin-bottom: 5px;
-        color: #d4af37;
-    }
-    .arrow-down {
-        width: 1px;
-        height: 30px;
-        background: #d4af37;
-        margin: 0 auto;
-    }
-
-    @keyframes bounce {
-        0%,
-        20%,
-        50%,
-        80%,
-        100% {
-            transform: translateY(0);
-        }
-        40% {
-            transform: translateY(-5px);
-        }
-        60% {
-            transform: translateY(-3px);
-        }
+    @media (max-width: 480px) {
+        .title { font-size: 2.2rem; }
+        .glass-card { padding: 1.5rem; }
+        .account-number { font-size: 1.4rem; }
     }
 </style>

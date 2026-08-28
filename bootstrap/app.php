@@ -17,7 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
-        // Karena pake api.php, kita GAK BUTUH lagi validateCsrfTokens(except: ...)
+        // Tambahkan ini:
+        $middleware->trustProxies(at: '*');
+
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

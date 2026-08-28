@@ -42,6 +42,7 @@
             clearInterval(tipInterval);
         };
     });
+    
 </script>
 
 {#if showContent}
@@ -94,8 +95,8 @@
                 class="subtitle-container"
                 in:fade={{ delay: 1000, duration: 800 }}
             >
-                <p class="subtitle">The Wedding Celebration</p>
-                <p class="date">24 MEI 2026</p>
+                <p class="subtitle">The Wedding</p>
+                <p class="date">6 SEPTEMBER 2026</p>
             </div>
 
             {#if guestName}
@@ -119,7 +120,7 @@
                     <div class="progress-fill" style="width: {progress}%"></div>
                 </div>
                 <p class="progress-text">
-                    Mempersiapkan Kebahagiaan... {Math.floor(progress)}%
+                    Preparing Happiness... {Math.floor(progress)}%
                 </p>
             </div>
 
@@ -207,6 +208,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        font-family: "Cormorant Garamond", serif;
     }
 
     /* FIX: PRESENTS */
@@ -227,7 +229,7 @@
         color: #d4af37;
         font-size: 9px;
         font-weight: 300;
-        font-family: "Inter", sans-serif; /* Balikin ke Sans */
+        font-family: "Cormorant Garamond", serif;
         letter-spacing: 0.6em; /* Dikecilin dikit biar gak meluber */
         white-space: nowrap; /* KUNCI: Biar gak turun ke bawah */
         margin: 0;
@@ -322,7 +324,7 @@
         font-style: normal;
     }
     .guest-name {
-        color: #fff;
+        color: #d4af37;
         font-size: 1.4rem;
         font-family: "Cormorant Garamond", serif;
         font-style: italic;

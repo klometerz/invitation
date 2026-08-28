@@ -3,11 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class Guest extends Model {
     // TAMBAHIN is_rsvp dan attendance di sini
-    protected $fillable = ['invitation_id', 'name', 'city', 'guest_code', 'is_rsvp', 'attendance'];
+    protected $fillable = [
+        'invitation_id', 'name', 'city', 'category', 'guest_code', 'quota',
+        'is_rsvp', 'attendance', 'message',
+        'checkin_status', 'checked_in_at', 'actual_guest_count', 'checked_in_by'
+    ];
+
+    protected $casts = [
+        'checked_in_at' => 'datetime',
+    ];
 
     protected static function booted() {
         static::creating(function ($guest) {

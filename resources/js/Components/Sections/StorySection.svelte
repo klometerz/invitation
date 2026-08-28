@@ -1,406 +1,273 @@
 <script>
     import { onMount, onDestroy } from "svelte";
 
-    let { scrollProgress = $bindable(0), isLocked = $bindable(false) } =
-        $props();
+    let { stories = [] } = $props();
 
-    let items = $state([]);
-    let viewport = $state(null);
-    let quoteElement = $state(null);
-    let ticking = false; // Untuk throttling
-
-    // Fungsi Update 3D dengan Throttling (requestAnimationFrame)
-    function update3D() {
-        if (!ticking) {
-            window.requestAnimationFrame(() => {
-                if (!viewport) return;
-
-                const vRect = viewport.getBoundingClientRect();
-                const vCenter = vRect.top + vRect.height / 2;
-                const scrollH = viewport.scrollHeight - viewport.clientHeight;
-                const progress = (viewport.scrollTop / scrollH) * 100;
-
-                scrollProgress = progress;
-                isLocked = progress < 98;
-
-                // Update timeline items
-                items.forEach((el) => {
-                    if (!el) return;
-                    const rect = el.getBoundingClientRect();
-                    const eCenter = rect.top + rect.height / 2;
-                    const normalized = (eCenter - vCenter) / (vRect.height / 2);
-
-                    const absNorm = Math.abs(normalized);
-                    const isMobile = window.innerWidth < 768;
-
-                    // Logic Animasi
-                    const z = Math.pow(1 - Math.min(1, absNorm), 2) * 600;
-                    const scale =
-                        0.75 + Math.pow(1 - Math.min(1, absNorm), 2) * 0.25;
-                    const opacity = 1 - absNorm * 1.8;
-
-                    // OPTIMASI: Matikan blur di mobile agar tidak lag
-                    const blur = isMobile ? 0 : absNorm * 12;
-
-                    el.style.transform = `translateZ(${z}px) scale(${scale})`;
-                    el.style.opacity = opacity > 0 ? opacity : 0;
-                    if (!isMobile) el.style.filter = `blur(${blur}px)`;
-                    el.style.zIndex = Math.round((1 - absNorm) * 100);
-                });
-
-                if (quoteElement) {
-                    const quoteProgress = Math.max(0, (progress - 85) / 15);
-                    quoteElement.style.opacity = quoteProgress;
-                    quoteElement.style.transform = `translateY(${(1 - quoteProgress) * 30}px)`;
-                }
-
-                ticking = false;
-            });
-            ticking = true;
-        }
-    }
+    let itemRefs = $state([]);
+    let visibleItems = $state(new Set());
+    let observer;
 
     onMount(() => {
-        update3D();
-        viewport.addEventListener("scroll", update3D, { passive: true });
+        observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const idx = parseInt(entry.target.dataset.idx);
+                        visibleItems = new Set([...visibleItems, idx]);
+                    }
+                });
+            },
+            { threshold: 0.3 }
+        );
+
+        itemRefs.forEach((el) => el && observer.observe(el));
     });
 
     onDestroy(() => {
-        if (viewport) viewport.removeEventListener("scroll", update3D);
+        if (observer) observer.disconnect();
     });
-
-    const timeline = [
-        {
-            year: "2020",
-            title: "First Met",
-            description:
-                "Pertama kali bertemu di acara gathering kantor. Tidak pernah menyangka bahwa pertemuan singkat itu akan menjadi awal dari cerita indah kami.",
-        },
-        {
-            year: "2021",
-            title: "First Date",
-            description:
-                "Kencan pertama kami di kafe favorit. Obrolan yang tidak pernah habis membuat kami sadar bahwa ini lebih dari sekadar kebetulan.",
-        },
-        {
-            year: "2023",
-            title: "The Proposal",
-            description:
-                "Di tempat pertama kami bertemu, dia berlutut dan mengajukan pertanyaan yang telah lama ditunggu. Tentu saja jawabannya adalah yes!",
-        },
-        {
-            year: "2025",
-            title: "Our Wedding",
-            description:
-                "Akhirnya hari yang ditunggu-tunggu tiba. Kami akan memulai babak baru dalam hidup kami, bersama-sama selamanya.",
-        },
-    ];
 </script>
 
-<div
-    class="story-viewport"
-    bind:this={viewport}
-    role="region"
-    aria-label="Our Love Story Timeline"
->
-    <section class="snap-section">
-        <div
-            class="header-content luxury-fade"
-            style="opacity: {Math.max(
-                0,
-                1 - scrollProgress / 20,
-            )}; transform: translateY({scrollProgress * 0.5}px)"
-        >
-            <div class="header-inner">
-                <p class="subtitle">THE JOURNEY OF US</p>
-                <h1 class="title">Our Love Story</h1>
-                <div class="ornament">
-                    <div class="diamond"></div>
-                </div>
-                <p class="description">
-                    Setiap cerita cinta memiliki awalnya sendiri. <br />
-                    Ini adalah perjalanan kami dari dua orang asing menjadi soulmates.
-                </p>
-            </div>
+<div class="story-wrapper">
+    <div class="story-header">
+        <p class="subtitle">HOW IT ALL BEGAN</p>
+        <h2 class="title">Our Love Story</h2>
+        <p class="description">
+            Setiap cerita cinta memiliki awalnya sendiri. Ini adalah perjalanan kami dari dua orang asing menjadi soulmates.
+        </p>
+    </div>
 
-            <div
-                class="scroll-instruction"
-                style="opacity: {Math.max(0, 1 - scrollProgress / 10)}"
-            >
-                <span>SCROLL</span>
-                <div class="mouse">
-                    <div class="wheel"></div>
-                </div>
-            </div>
-        </div>
-    </section>
+    {#if stories.length > 0}
+        <div class="timeline">
+            {#each stories as item, i}
+                <div
+                    class="timeline-row"
+                    class:visible={visibleItems.has(i)}
+                    bind:this={itemRefs[i]}
+                    data-idx={i}
+                >
+                    <div class="timeline-marker">
+                        <div class="marker-dot"></div>
+                        {#if i < stories.length - 1}
+                            <div class="marker-line"></div>
+                        {/if}
+                    </div>
 
-    {#each timeline as item, i}
-        <section class="snap-section">
-            <div class="timeline-item" bind:this={items[i]}>
-                <div class="glass-card">
-                    <div class="card-glow"></div>
-                    <div class="content">
-                        <span class="year">{item.year}</span>
-                        <h3 class="card-title">{item.title}</h3>
-                        <p class="desc">{item.description}</p>
+                    <div class="glass-card">
+                        {#if item.foto_url}
+                            <div class="story-photo">
+                                <img src={item.foto_url} alt={item.judul} />
+                            </div>
+                        {:else}
+                            <div class="story-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="1.5">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                </svg>
+                            </div>
+                        {/if}
+                        <div class="card-text">
+                            <span class="year">{item.tahun}</span>
+                            <h3 class="card-title">{item.judul}</h3>
+                            <p class="desc">{item.deskripsi}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-    {/each}
-
-    <section class="snap-section">
-        <div class="footer-content" bind:this={quoteElement}>
-            <div class="quote-container">
-                <div class="quote-mark">"</div>
-                <p class="quote-text">
-                    Love is not about how many days, months, or years you have
-                    been together. It's all about how much you love tiap hari.
-                </p>
-                <div class="quote-author">— Unknown</div>
-            </div>
+            {/each}
         </div>
-    </section>
+
+        <div class="quote-block">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">
+                Love is not about how many days, months, or years you have been together.
+                It's all about how much you love each other every single day.
+            </p>
+        </div>
+    {:else}
+        <p class="empty-text">Cerita akan segera hadir di sini.</p>
+    {/if}
 </div>
 
 <style>
-    /* FIX: @import harus di baris paling atas! */
-    @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400&display=swap");
-
-    .story-viewport {
-        position: absolute;
-        inset: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
-        scroll-snap-type: y mandatory;
-        perspective: 1200px;
-        perspective-origin: center center;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .story-viewport::-webkit-scrollbar {
-        display: none;
-    }
-
-    .snap-section {
-        height: 100vh;
+    .story-wrapper {
         width: 100%;
-        scroll-snap-align: center;
-        scroll-snap-stop: always;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
+        max-width: 640px;
+        margin: 0 auto;
     }
 
-    /* Optimasi Animasi: Gunakan will-change */
-    .timeline-item {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        transform-style: preserve-3d;
-        will-change: transform, opacity;
-        transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    }
-
-    .glass-card {
-        width: 85%;
-        max-width: 450px;
-        padding: 2.5rem;
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
-        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
-        position: relative;
-    }
-
-    /* Header & Text Styles */
-    .header-content {
+    .story-header {
         text-align: center;
-        color: white;
-        padding: 2rem;
-        max-width: 600px;
+        margin-bottom: 3rem;
     }
+
     .subtitle {
         letter-spacing: 0.5em;
         font-size: 10px;
-        opacity: 0.5;
-        text-transform: uppercase;
-    }
-    .title {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 3rem;
-        font-weight: 300;
-    }
-    .year {
         color: #d4af37;
-        font-weight: 600;
-        letter-spacing: 0.3em;
-        font-size: 11px;
-        display: block;
-        margin-bottom: 0.75rem;
-    }
-    .card-title {
-        color: white;
-        font-family: "Cormorant Garamond", serif;
-        font-size: 2rem;
-        font-weight: 400;
-    }
-    .desc {
-        color: rgba(255, 255, 255, 0.65);
-        font-size: 14px;
-        font-weight: 300;
-    }
-
-    /* Quote Styles */
-    .footer-content {
-        text-align: center;
-        padding: 2rem;
-        will-change: opacity, transform;
-    }
-    .quote-container {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 3rem 2rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .quote-text {
-        color: rgba(255, 255, 255, 0.8);
-        font-family: "Cormorant Garamond", serif;
-        font-style: italic;
-        font-size: 1.25rem;
-        font-weight: 300;
-    }
-
-    /* Mobile optimization */
-    @media (max-width: 768px) {
-        .glass-card {
-            backdrop-filter: none;
-            background: rgba(20, 20, 20, 0.8);
-        } /* Matikan backdrop-filter di mobile */
-        .title {
-            font-size: 2.5rem;
-        }
-    }
-    .header-content {
-        text-align: center;
-        color: white;
-        padding: 2rem;
-        max-width: 500px;
-        position: relative;
-        z-index: 10;
-        /* Tambahin transition biar pas balik (swipe up) gak patah */
-        transition: opacity 0.2s ease-out;
-    }
-
-    .subtitle {
-        font-size: 9px;
-        letter-spacing: 0.5em;
-        color: #d4af37; /* Pake aksen emas biar mewah */
         text-transform: uppercase;
         margin-bottom: 1rem;
     }
 
     .title {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 3.5rem;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 2.5rem;
         font-weight: 300;
-        line-height: 1;
-        margin-bottom: 1.5rem;
-        background: linear-gradient(to bottom, #fff, #a1a1aa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-
-    /* Ornament pemanis biar gak kosong banget */
-    .ornament {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-        opacity: 0.6;
-    }
-    .ornament::before,
-    .ornament::after {
-        content: "";
-        height: 1px;
-        width: 40px;
-        background: linear-gradient(to var(--dir, right), transparent, #d4af37);
-    }
-    .ornament::after {
-        --dir: left;
-    }
-
-    .diamond {
-        width: 6px;
-        height: 6px;
-        background: #d4af37;
-        transform: rotate(45deg);
+        margin-bottom: 1rem;
+        color: white;
     }
 
     .description {
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.6);
         font-size: 14px;
-        line-height: 1.8;
-        font-style: italic;
-        font-family: "Cormorant Garamond", serif;
+        line-height: 1.6;
+        max-width: 480px;
+        margin: 0 auto;
     }
 
-    /* Scroll Instruction yang lebih modern */
-    .scroll-instruction {
-        position: absolute;
-        bottom: -15vh;
-        left: 50%;
-        transform: translateX(-50%);
+    .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .timeline-row {
+        display: flex;
+        gap: 1.25rem;
+        opacity: 0;
+        transform: translateY(30px);
+        transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .timeline-row.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .timeline-marker {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
+        flex-shrink: 0;
+        padding-top: 8px;
     }
 
-    .scroll-instruction span {
-        font-size: 8px;
-        letter-spacing: 0.3em;
-        opacity: 0.4;
-    }
-
-    .mouse {
-        width: 20px;
-        height: 32px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 20px;
-        position: relative;
-    }
-
-    .wheel {
-        width: 2px;
-        height: 6px;
+    .marker-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
         background: #d4af37;
-        border-radius: 2px;
-        position: absolute;
-        top: 6px;
-        left: 50%;
-        transform: translateX(-50%);
-        animation: scroll-anim 2s infinite;
+        box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15);
     }
 
-    @keyframes scroll-anim {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, 0);
-        }
-        30% {
-            opacity: 1;
-        }
-        100% {
-            opacity: 0;
-            transform: translate(-50%, 15px);
-        }
+    .marker-line {
+        width: 2px;
+        flex: 1;
+        min-height: 60px;
+        background: linear-gradient(to bottom, rgba(212,175,55,0.4), rgba(212,175,55,0.05));
+        margin-top: 4px;
+    }
+
+    .glass-card {
+        flex: 1;
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 16px;
+    }
+
+    .story-photo {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        overflow: hidden;
+        flex-shrink: 0;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .story-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .story-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 10px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(212, 175, 55, 0.08);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .card-text {
+        flex: 1;
+    }
+
+    .year {
+        color: #d4af37;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        font-size: 11px;
+        display: block;
+        margin-bottom: 0.4rem;
+    }
+
+    .card-title {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.4rem;
+        color: white;
+        font-weight: 400;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .desc {
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 13.5px;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .quote-block {
+        text-align: center;
+        margin-top: 3rem;
+        padding: 2rem 1rem;
+        border-top: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .quote-mark {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 3.5rem;
+        color: rgba(212, 175, 55, 0.3);
+        line-height: 0.5;
+        margin-bottom: 0.5rem;
+    }
+
+    .quote-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-style: italic;
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.7);
+        line-height: 1.7;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+
+    .empty-text {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+        .title { font-size: 2rem; }
+        .glass-card { padding: 1.2rem; gap: 0.85rem; }
+        .story-photo, .story-icon { width: 48px; height: 48px; }
+        .card-title { font-size: 1.2rem; }
     }
 </style>

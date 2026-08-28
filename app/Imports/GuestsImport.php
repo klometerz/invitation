@@ -17,6 +17,8 @@ class GuestsImport implements ToModel {
         return new Guest([
             'name' => $row[1], // col2: Nama
             'city' => $row[2], // col3: Kota
+            'category' => $row[3], // col4: Kategori
+            'quota' => $row[4], // col5: Quota
             'invitation_id' => $this->invitationId,
         ]);
     }
