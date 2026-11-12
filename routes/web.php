@@ -113,6 +113,10 @@ Route::prefix('admin')->middleware('auth')->group(function () {
     Route::get('/guests/export', [GuestController::class, 'export'])->name('admin.guests.export');
 Route::get('/guests/print-labels', [GuestController::class, 'printLabels'])->name('admin.guests.print');
 Route::get('/scanner/stats', [ScannerController::class, 'todayStats'])->name('admin.scanner.stats');
+Route::get('/photobooth', [PhotoboothController::class, 'adminIndex'])->name('admin.photobooth.index');
+    Route::delete('/photobooth/{id}', [PhotoboothController::class, 'destroy'])->name('admin.photobooth.destroy');
+    Route::get('/photobooth/print', [PhotoboothController::class, 'printView'])->name('admin.photobooth.print');
+
 });
 
 // routes/web.php

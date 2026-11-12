@@ -29,4 +29,9 @@ public function invitation(): BelongsTo
 {
     return $this->belongsTo(Invitation::class);
 }
+
+public function photoboothPhotos(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(PhotoboothPhoto::class);
+}
 }
