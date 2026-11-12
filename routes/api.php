@@ -15,5 +15,8 @@ Route::get('/user', function (Request $request) {
 */
 Route::middleware('tenant.guestcode')->group(function () {
     Route::get('/guests/{code}', [GuestController::class, 'show']);
-    Route::post('/rsvp/{code}', [GuestController::class, 'updateRsvp']);
+
+    // P3-T4: RSVP is rate limited per IP + guest code.
+    Route::post('/rsvp/{code}', [GuestController::class, 'updateRsvp'])
+        ->middleware('throttle:rsvp');
 });

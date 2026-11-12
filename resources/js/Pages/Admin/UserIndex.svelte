@@ -2,7 +2,15 @@
     import { router, useForm } from "@inertiajs/svelte";
     import AdminLayout from "../../Components/Admin/AdminLayout.svelte";
 
-    let { users, invitations = [] } = $props();
+    let { users = null, invitations = [] } = $props();
+
+    // Paginator payloads are read through $derived so an older/newer server
+    // payload can never crash the page (Svelte 5 prop destructuring alone
+    // produced `undefined` reads here).
+    const rows = $derived(Array.isArray(users?.data) ? users.data : []);
+    const invitationOptions = $derived(
+        Array.isArray(invitations) ? invitations : [],
+    );
 
     let editingId = $state(null);
 
@@ -11,7 +19,7 @@
         email: "",
         password: "",
         role: "staff",
-        invitation_id: invitations[0]?.id ?? "",
+        invitation_id: (Array.isArray(invitations) ? invitations : [])[0]?.id ?? "",
         is_active: true,
     });
 
@@ -19,19 +27,23 @@
         editingId = null;
         form.reset();
         form.clearErrors();
-        form.invitation_id = invitations[0]?.id ?? "";
-        form.role = "staff";
-        form.is_active = true;
+        form.setStore({
+            invitation_id: (Array.isArray(invitations) ? invitations : [])[0]?.id ?? "",
+            role: "staff",
+            is_active: true,
+        });
     }
 
     function editUser(user) {
         editingId = user.id;
-        form.name = user.name;
-        form.email = user.email;
-        form.role = user.role;
-        form.invitation_id = user.invitation_id ?? invitations[0]?.id ?? "";
-        form.is_active = user.is_active;
-        form.password = "";
+        form.setStore({
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            invitation_id: user.invitation_id ?? (Array.isArray(invitations) ? invitations : [])[0]?.id ?? "",
+            is_active: user.is_active,
+            password: "",
+        });
         form.clearErrors();
     }
 
@@ -85,13 +97,13 @@
         <div class="grid grid-3">
             <div class="field">
                 <label class="label" for="u-name">Nama</label>
-                <input id="u-name" class="input" bind:value={form.name} />
-                {#if form.errors.name}<p class="error">{form.errors.name}</p>{/if}
+                <input id="u-name" class="input" bind:value={$form.name} />
+                {#if $form.errors.name}<p class="error">{$form.errors.name}</p>{/if}
             </div>
             <div class="field">
                 <label class="label" for="u-email">Email</label>
-                <input id="u-email" class="input" type="email" bind:value={form.email} />
-                {#if form.errors.email}<p class="error">{form.errors.email}</p>{/if}
+                <input id="u-email" class="input" type="email" bind:value={$form.email} />
+                {#if $form.errors.email}<p class="error">{$form.errors.email}</p>{/if}
             </div>
             {#if !editingId}
                 <div class="field">
@@ -101,23 +113,23 @@
                         class="input"
                         type="password"
                         autocomplete="new-password"
-                        bind:value={form.password}
+                        bind:value={$form.password}
                     />
-                    {#if form.errors.password}<p class="error">{form.errors.password}</p>{/if}
+                    {#if $form.errors.password}<p class="error">{$form.errors.password}</p>{/if}
                 </div>
             {/if}
             <div class="field">
                 <label class="label" for="u-invitation">Acara</label>
-                <select id="u-invitation" class="input" bind:value={form.invitation_id}>
-                    {#each invitations as invitation (invitation.id)}
+                <select id="u-invitation" class="input" bind:value={$form.invitation_id}>
+                    {#each invitationOptions as invitation (invitation.id)}
                         <option value={invitation.id}>{invitation.title}</option>
                     {/each}
                 </select>
-                {#if form.errors.invitation_id}<p class="error">{form.errors.invitation_id}</p>{/if}
+                {#if $form.errors.invitation_id}<p class="error">{$form.errors.invitation_id}</p>{/if}
             </div>
             <div class="field">
                 <label class="label" for="u-role">Peran</label>
-                <select id="u-role" class="input" bind:value={form.role}>
+                <select id="u-role" class="input" bind:value={$form.role}>
                     <option value="staff">Staff (scanner)</option>
                     <option value="client">Client (tanpa akses)</option>
                 </select>
@@ -128,7 +140,7 @@
             {#if editingId}
                 <button type="button" class="btn" onclick={resetForm}>Batal</button>
             {/if}
-            <button type="submit" class="btn btn-primary" disabled={form.processing}>
+            <button type="submit" class="btn btn-primary" disabled={$form.processing}>
                 {editingId ? "Simpan Perubahan" : "Tambah Petugas"}
             </button>
         </div>
@@ -148,7 +160,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {#each users.data as user (user.id)}
+                    {#each rows as user (user.id)}
                         <tr>
                             <td class="title-cell">{user.name}</td>
                             <td>{user.email}</td>
@@ -175,7 +187,7 @@
                         </tr>
                     {/each}
 
-                    {#if users.data.length === 0}
+                    {#if rows.length === 0}
                         <tr>
                             <td colspan="6" class="empty">Belum ada petugas.</td>
                         </tr>

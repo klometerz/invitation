@@ -1,0 +1,11 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#2e2a22"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#g)"/>
+  <circle cx="600" cy="800" r="400" fill="none" stroke="#d4af37" stroke-width="2" opacity="0.6"/>
+  <text x="50%" y="52%" text-anchor="middle" font-family="Georgia, serif" font-size="133" fill="#d4af37" opacity="0.9">CONTOH</text>
+</svg>

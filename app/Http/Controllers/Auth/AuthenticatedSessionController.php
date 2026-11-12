@@ -46,8 +46,8 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // Staff only have the scanner; the owner starts on the guest list.
-        $fallback = $request->user()->isAdmin() ? '/admin/guests' : '/admin/scanner';
+        // Staff only have the scanner; the owner starts on the dashboard.
+        $fallback = $request->user()->isAdmin() ? '/admin' : '/admin/scanner';
 
         return redirect()->intended($fallback);
     }

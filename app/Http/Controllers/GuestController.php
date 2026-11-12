@@ -110,6 +110,15 @@ class GuestController extends Controller
             'quota' => 'required|integer|min:1|max:20',
         ]);
 
+        // P3-T3: package guest limit.
+        $limit = $this->currentInvitation()->limit('max_guests');
+
+        if ($limit !== null && Guest::count() >= $limit) {
+            return back()->withErrors([
+                'name' => "Batas paket tercapai ({$limit} tamu). Hapus tamu lain atau tingkatkan paket.",
+            ]);
+        }
+
         // invitation_id is filled from TenantContext by the trait.
         Guest::create($validated);
 
@@ -150,10 +159,31 @@ class GuestController extends Controller
         $invitationId = app(TenantContext::class)->id() ?? $this->currentInvitation()->id;
         $created = 0;
         $updated = 0;
+        $skipped = 0;
+
+        // P3-T3: stop importing once the package limit is reached, and report
+        // exactly how many rows were skipped.
+        $limit = $this->currentInvitation()->limit('max_guests');
+        $current = Guest::count();
 
         foreach (array_slice($rows, 1) as $row) {
             if (empty($row[0])) {
                 continue;
+            }
+
+            $exists = Guest::where('invitation_id', $invitationId)
+                ->where('name', $row[0])
+                ->where('city', $row[1] ?? '-')
+                ->exists();
+
+            if (! $exists) {
+                if ($limit !== null && $current >= $limit) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $current++;
             }
 
             // K3: match inside the tenant on (invitation_id, name, city) so a
@@ -173,10 +203,13 @@ class GuestController extends Controller
             $guest->wasRecentlyCreated ? $created++ : $updated++;
         }
 
-        return back()->with(
-            'success',
-            "Import selesai: {$created} tamu baru, {$updated} tamu diperbarui."
-        );
+        $message = "Import selesai: {$created} tamu baru, {$updated} tamu diperbarui.";
+
+        if ($skipped > 0) {
+            $message .= " {$skipped} baris dilewati karena batas paket ({$limit} tamu).";
+        }
+
+        return back()->with('success', $message);
     }
 
     public function show($code)

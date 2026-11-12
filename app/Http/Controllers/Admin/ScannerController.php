@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Guest;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class ScannerController extends Controller
 {
@@ -23,14 +23,17 @@ class ScannerController extends Controller
      */
     public function checkin(Request $request)
     {
+        abort_if($request->user() === null, 403);
+
         $request->validate([
-            'code' => 'required|string',
+            'code' => 'required|string|max:255',
         ]);
 
+        // Scoped by TenantScope: staff of A can never scan B's guest.
         $guest = Guest::where('guest_code', $request->code)->first();
 
         // QR code tidak ditemukan di database
-        if (!$guest) {
+        if (! $guest) {
             return response()->json([
                 'status' => 'invalid',
                 'message' => 'QR Code tidak ditemukan. Pastikan kode benar.',
@@ -52,12 +55,14 @@ class ScannerController extends Controller
             ], 409); // 409 Conflict
         }
 
-        // Sukses check-in
+        // Sukses check-in.
+        // K8: the operator is ALWAYS the authenticated user, never a value
+        // taken from the request body.
         $guest->update([
             'checkin_status' => 'arrived',
             'checked_in_at' => now(),
             'actual_guest_count' => $guest->quota, // default sesuai quota, bisa diedit nanti
-            'checked_in_by' => $request->user()?->name ?? 'Unknown',
+            'checked_in_by' => $request->user()->name,
         ]);
 
         return response()->json([
@@ -66,7 +71,7 @@ class ScannerController extends Controller
             'guest' => [
                 'name' => $guest->name,
                 'city' => $guest->city,
-                'category' => $guest->category,     
+                'category' => $guest->category,
                 'quota' => $guest->quota,
                 'checked_in_at' => $guest->checked_in_at->format('H:i:s'),
             ],
@@ -81,13 +86,12 @@ class ScannerController extends Controller
         return $this->checkin($request);
     }
 
-  
+    public function todayStats()
+    {
+        $count = Guest::where('checkin_status', 'arrived')
+            ->whereDate('checked_in_at', Carbon::today())
+            ->count();
 
-public function todayStats() {
-    $count = Guest::where('checkin_status', 'arrived')
-        ->whereDate('checked_in_at', Carbon::today())
-        ->count();
-
-    return response()->json(['count' => $count]);
-}
+        return response()->json(['count' => $count]);
+    }
 }

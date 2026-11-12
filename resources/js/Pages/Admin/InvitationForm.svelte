@@ -40,24 +40,27 @@
     });
 
     function toggleSection(key) {
-        if (form.sections.includes(key)) {
+        if ($form.sections.includes(key)) {
             // `welcome` is mandatory (server also forces it).
             if (key === "welcome") return;
-            form.sections = form.sections.filter((item) => item !== key);
+            form.setStore(
+                "sections",
+                $form.sections.filter((item) => item !== key),
+            );
         } else {
-            form.sections = [...form.sections, key];
+            form.setStore("sections", [...$form.sections, key]);
         }
     }
 
     function moveSection(index, direction) {
         const target = index + direction;
-        if (target < 0 || target >= form.sections.length) return;
+        if (target < 0 || target >= $form.sections.length) return;
         // `welcome` stays first.
-        if (form.sections[index] === "welcome" || form.sections[target] === "welcome") return;
+        if ($form.sections[index] === "welcome" || $form.sections[target] === "welcome") return;
 
-        const next = [...form.sections];
+        const next = [...$form.sections];
         [next[index], next[target]] = [next[target], next[index]];
-        form.sections = next;
+        form.setStore("sections", next);
     }
 
     function sectionLabel(key) {
@@ -67,7 +70,7 @@
     const slugPattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
     const slugError = $derived.by(() => {
-        const value = (form.slug ?? "").trim();
+        const value = ($form.slug ?? "").trim();
         if (!value) return "Slug wajib diisi.";
         if (!slugPattern.test(value)) {
             return "Hanya huruf kecil, angka dan tanda hubung tunggal.";
@@ -109,8 +112,8 @@
             <div class="grid grid-2">
                 <div class="field">
                     <label class="label" for="f-title">Judul</label>
-                    <input id="f-title" class="input" bind:value={form.title} />
-                    {#if form.errors.title}<p class="error">{form.errors.title}</p>{/if}
+                    <input id="f-title" class="input" bind:value={$form.title} />
+                    {#if $form.errors.title}<p class="error">{$form.errors.title}</p>{/if}
                 </div>
 
                 <div class="field">
@@ -118,31 +121,31 @@
                     <input
                         id="f-slug"
                         class="input"
-                        bind:value={form.slug}
+                        bind:value={$form.slug}
                         placeholder="nama-pasangan"
                     />
                     {#if slugError}
                         <p class="error">{slugError}</p>
-                    {:else if form.errors.slug}
-                        <p class="error">{form.errors.slug}</p>
+                    {:else if $form.errors.slug}
+                        <p class="error">{$form.errors.slug}</p>
                     {:else}
-                        <p class="hint">/{form.slug}</p>
+                        <p class="hint">/{$form.slug}</p>
                     {/if}
                 </div>
 
                 <div class="field">
                     <label class="label" for="f-theme">Tema</label>
-                    <select id="f-theme" class="input" bind:value={form.theme_id}>
+                    <select id="f-theme" class="input" bind:value={$form.theme_id}>
                         {#each themes as theme (theme.id)}
                             <option value={theme.id}>{theme.name}</option>
                         {/each}
                     </select>
-                    {#if form.errors.theme_id}<p class="error">{form.errors.theme_id}</p>{/if}
+                    {#if $form.errors.theme_id}<p class="error">{$form.errors.theme_id}</p>{/if}
                 </div>
 
                 <div class="field">
                     <label class="label" for="f-package">Paket</label>
-                    <select id="f-package" class="input" bind:value={form.package_id}>
+                    <select id="f-package" class="input" bind:value={$form.package_id}>
                         <option value="">Tanpa paket</option>
                         {#each packages as pkg (pkg.id)}
                             <option value={pkg.id}>
@@ -150,12 +153,12 @@
                             </option>
                         {/each}
                     </select>
-                    {#if form.errors.package_id}<p class="error">{form.errors.package_id}</p>{/if}
+                    {#if $form.errors.package_id}<p class="error">{$form.errors.package_id}</p>{/if}
                 </div>
 
                 <div class="field">
                     <label class="label" for="f-status">Status</label>
-                    <select id="f-status" class="input" bind:value={form.status}>
+                    <select id="f-status" class="input" bind:value={$form.status}>
                         <option value="draft">Draft (hanya admin)</option>
                         <option value="active">Aktif</option>
                         <option value="expired">Berakhir</option>
@@ -165,18 +168,18 @@
 
                 <div class="field">
                     <label class="label" for="f-event">Tanggal Acara</label>
-                    <input id="f-event" class="input" type="date" bind:value={form.event_date} />
+                    <input id="f-event" class="input" type="date" bind:value={$form.event_date} />
                 </div>
 
                 <div class="field">
                     <label class="label" for="f-from">Aktif Dari</label>
-                    <input id="f-from" class="input" type="datetime-local" bind:value={form.active_from} />
+                    <input id="f-from" class="input" type="datetime-local" bind:value={$form.active_from} />
                 </div>
 
                 <div class="field">
                     <label class="label" for="f-until">Aktif Sampai</label>
-                    <input id="f-until" class="input" type="datetime-local" bind:value={form.active_until} />
-                    {#if form.errors.active_until}<p class="error">{form.errors.active_until}</p>{/if}
+                    <input id="f-until" class="input" type="datetime-local" bind:value={$form.active_until} />
+                    {#if $form.errors.active_until}<p class="error">{$form.errors.active_until}</p>{/if}
                 </div>
             </div>
         </section>
@@ -186,16 +189,16 @@
             <div class="grid grid-3">
                 <div class="field">
                     <label class="label" for="f-cname">Nama Klien</label>
-                    <input id="f-cname" class="input" bind:value={form.client_name} />
+                    <input id="f-cname" class="input" bind:value={$form.client_name} />
                 </div>
                 <div class="field">
                     <label class="label" for="f-cphone">No. WhatsApp</label>
-                    <input id="f-cphone" class="input" bind:value={form.client_phone} />
+                    <input id="f-cphone" class="input" bind:value={$form.client_phone} />
                 </div>
                 <div class="field">
                     <label class="label" for="f-cemail">Email</label>
-                    <input id="f-cemail" class="input" type="email" bind:value={form.client_email} />
-                    {#if form.errors.client_email}<p class="error">{form.errors.client_email}</p>{/if}
+                    <input id="f-cemail" class="input" type="email" bind:value={$form.client_email} />
+                    {#if $form.errors.client_email}<p class="error">{$form.errors.client_email}</p>{/if}
                 </div>
             </div>
         </section>
@@ -205,11 +208,11 @@
             <div class="grid grid-3">
                 <div class="field">
                     <label class="label" for="f-price">Harga Disepakati</label>
-                    <input id="f-price" class="input" type="number" min="0" bind:value={form.price_agreed} />
+                    <input id="f-price" class="input" type="number" min="0" bind:value={$form.price_agreed} />
                 </div>
                 <div class="field">
                     <label class="label" for="f-payment">Status Pembayaran</label>
-                    <select id="f-payment" class="input" bind:value={form.payment_status}>
+                    <select id="f-payment" class="input" bind:value={$form.payment_status}>
                         <option value="unpaid">Belum bayar</option>
                         <option value="partial">DP / sebagian</option>
                         <option value="paid">Lunas</option>
@@ -217,11 +220,11 @@
                 </div>
                 <div class="field">
                     <label class="label" for="f-paid">Jumlah Dibayar</label>
-                    <input id="f-paid" class="input" type="number" min="0" bind:value={form.amount_paid} />
+                    <input id="f-paid" class="input" type="number" min="0" bind:value={$form.amount_paid} />
                 </div>
                 <div class="field">
                     <label class="label" for="f-paidat">Tanggal Bayar</label>
-                    <input id="f-paidat" class="input" type="datetime-local" bind:value={form.paid_at} />
+                    <input id="f-paidat" class="input" type="datetime-local" bind:value={$form.paid_at} />
                 </div>
             </div>
         </section>
@@ -234,7 +237,7 @@
             </p>
 
             <ul class="sections-list">
-                {#each form.sections as key, i (key)}
+                {#each $form.sections as key, i (key)}
                     <li class="section-row">
                         <label class="section-check">
                             <input
@@ -259,7 +262,7 @@
                             <button
                                 type="button"
                                 class="mini"
-                                disabled={i === form.sections.length - 1}
+                                disabled={i === $form.sections.length - 1}
                                 onclick={() => moveSection(i, 1)}
                                 aria-label="Turunkan"
                             >↓</button>
@@ -268,10 +271,10 @@
                 {/each}
             </ul>
 
-            {#if sectionOptions.some((section) => !form.sections.includes(section.key))}
+            {#if sectionOptions.some((section) => !$form.sections.includes(section.key))}
                 <p class="hint" style="margin-top: 12px;">Tambah bagian:</p>
                 <div class="chips">
-                    {#each sectionOptions.filter((section) => !form.sections.includes(section.key)) as section (section.key)}
+                    {#each sectionOptions.filter((section) => !$form.sections.includes(section.key)) as section (section.key)}
                         <button
                             type="button"
                             class="chip"
@@ -284,7 +287,7 @@
 
         <section class="section">
             <h2 class="section-title">Catatan Internal</h2>
-            <textarea class="input textarea" rows="3" bind:value={form.internal_notes}></textarea>
+            <textarea class="input textarea" rows="3" bind:value={$form.internal_notes}></textarea>
         </section>
 
         <div class="form-actions">
@@ -292,7 +295,7 @@
             <button
                 type="submit"
                 class="btn btn-primary"
-                disabled={form.processing || !!slugError}
+                disabled={$form.processing || !!slugError}
             >
                 {isEdit ? "Simpan Perubahan" : "Buat Undangan"}
             </button>

@@ -35,4 +35,39 @@ class Package extends Model
     {
         return $this->hasMany(Invitation::class);
     }
+
+    /**
+     * Feature flags keyed by config/features.php. Missing keys default to
+     * false so a package can only enable what it explicitly declares.
+     *
+     * @return array<string, bool>
+     */
+    public function featureFlags(): array
+    {
+        $stored = is_array($this->features) ? $this->features : [];
+        $flags = [];
+
+        foreach (array_keys(config('features', [])) as $key) {
+            $flags[$key] = (bool) ($stored[$key] ?? false);
+        }
+
+        return $flags;
+    }
+
+    /**
+     * @return array<string, int|null>
+     */
+    public function limitValues(): array
+    {
+        $stored = is_array($this->limits) ? $this->limits : [];
+        $values = [];
+
+        foreach (\App\Http\Controllers\Admin\PackageController::LIMIT_KEYS as $key) {
+            $values[$key] = isset($stored[$key]) && $stored[$key] !== null
+                ? (int) $stored[$key]
+                : null;
+        }
+
+        return $values;
+    }
 }

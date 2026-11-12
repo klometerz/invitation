@@ -41,6 +41,12 @@
         }
     }
 
+    function activate(id, title) {
+        if (confirm(`Aktifkan "${title}" sekarang?`)) {
+            router.post(`/admin/invitations/${id}/activate`);
+        }
+    }
+
     function submitSearch() {
         router.get(
             "/admin/invitations",
@@ -109,6 +115,12 @@
                                         onclick={() => window.open(invitation.public_url, "_blank")}
                                     >Preview</button>
                                     <a class="mini" href={`/admin/invitations/${invitation.id}/edit`}>Edit</a>
+                                    {#if invitation.status === "draft" || invitation.status === "expired"}
+                                        <button
+                                            class="mini"
+                                            onclick={() => activate(invitation.id, invitation.title)}
+                                        >Aktifkan</button>
+                                    {/if}
                                     <button class="mini" onclick={() => duplicate(invitation.id)}>Duplikat</button>
                                     <button
                                         class="mini danger"

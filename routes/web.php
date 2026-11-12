@@ -1,13 +1,16 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InvitationContentController;
 use App\Http\Controllers\Admin\InvitationController;
+use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\ScannerController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\GuestController;
-use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\PhotoboothController;
 use App\Http\Controllers\WeddingController;
 use App\Support\SlugRules;
@@ -39,7 +42,8 @@ Route::get('/storage/{path}', function ($path) {
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:login');
 });
 
 Route::middleware('auth')->group(function () {
@@ -52,11 +56,14 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-// Phase 1 placeholder: redirects to the showcase invitation. P3-T6 replaces
-// this with the marketing landing page.
-Route::get('/', HomeController::class)->name('home');
+// P3-T6: real marketing landing page (Indonesian content).
+// Legacy `/?guest=CODE` is handled inside LandingController so printed QR
+// cards keep redirecting to the personalised slug URL.
+Route::get('/', LandingController::class)->name('home');
 
-// Legacy `/?guest=CODE` is handled by HomeController (it redirects to the slug).
+// Legal placeholders - TODO(owner): legal review before publishing.
+Route::get('/terms', [LandingController::class, 'terms'])->name('terms');
+Route::get('/privacy', [LandingController::class, 'privacy'])->name('privacy');
 
 // Legacy `/photobooth?guest=CODE` -> `/{slug}/photobooth?guest=CODE`
 Route::get('/photobooth', [PhotoboothController::class, 'legacyRedirect'])
@@ -64,7 +71,7 @@ Route::get('/photobooth', [PhotoboothController::class, 'legacyRedirect'])
 
 // Legacy capture endpoint still used by the current photobooth frontend.
 Route::post('/photobooth/capture', [PhotoboothController::class, 'store'])
-    ->middleware(['tenant.guestcode', 'feature:photobooth'])
+    ->middleware(['tenant.guestcode', 'feature:photobooth', 'throttle:photobooth-capture'])
     ->name('legacy.photobooth.capture');
 
 // Decision C2: `/v/{slug}` was the original public URL. It becomes a permanent
@@ -85,12 +92,15 @@ Route::prefix('admin')->middleware('auth')->group(function () {
      | list of weddings and their staff accounts here).
      */
     Route::middleware('role:admin')->group(function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('admin.dashboard');
+
         Route::get('/invitations', [InvitationController::class, 'index'])->name('admin.invitations.index');
         Route::get('/invitations/create', [InvitationController::class, 'create'])->name('admin.invitations.create');
         Route::post('/invitations', [InvitationController::class, 'store'])->name('admin.invitations.store');
         Route::get('/invitations/{id}/edit', [InvitationController::class, 'edit'])->name('admin.invitations.edit');
         Route::put('/invitations/{id}', [InvitationController::class, 'update'])->name('admin.invitations.update');
         Route::post('/invitations/{id}/duplicate', [InvitationController::class, 'duplicate'])->name('admin.invitations.duplicate');
+        Route::post('/invitations/{id}/activate', [InvitationController::class, 'activate'])->name('admin.invitations.activate');
         Route::post('/invitations/{id}/archive', [InvitationController::class, 'archive'])->name('admin.invitations.archive');
 
         Route::post('/tenant/switch', [InvitationController::class, 'switch'])->name('admin.tenant.switch');
@@ -99,6 +109,15 @@ Route::prefix('admin')->middleware('auth')->group(function () {
         Route::post('/users', [UserController::class, 'store'])->name('admin.users.store');
         Route::put('/users/{id}', [UserController::class, 'update'])->name('admin.users.update');
         Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset-password');
+
+        // Packages (P3-T1) and platform settings (P3-T5)
+        Route::get('/packages', [PackageController::class, 'index'])->name('admin.packages.index');
+        Route::post('/packages', [PackageController::class, 'store'])->name('admin.packages.store');
+        Route::put('/packages/{id}', [PackageController::class, 'update'])->name('admin.packages.update');
+        Route::delete('/packages/{id}', [PackageController::class, 'destroy'])->name('admin.packages.destroy');
+
+        Route::get('/settings', [SettingController::class, 'edit'])->name('admin.settings.edit');
+        Route::post('/settings', [SettingController::class, 'update'])->name('admin.settings.update');
     });
 
     /*
@@ -162,7 +181,7 @@ Route::get('/{slug}/photobooth', [PhotoboothController::class, 'index'])
 
 Route::post('/{slug}/photobooth/capture', [PhotoboothController::class, 'store'])
     ->where('slug', SlugRules::PATTERN)
-    ->middleware(['tenant.public', 'feature:photobooth'])
+    ->middleware(['tenant.public', 'feature:photobooth', 'throttle:photobooth-capture'])
     ->name('invitation.photobooth.capture');
 
 Route::get('/{slug}', [WeddingController::class, 'index'])

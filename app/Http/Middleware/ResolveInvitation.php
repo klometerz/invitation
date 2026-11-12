@@ -7,6 +7,7 @@ use App\Support\InvitationAccess;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -38,7 +39,19 @@ class ResolveInvitation
         }
 
         if ($outcome === InvitationAccess::EXPIRED) {
-            abort(410, 'Undangan sudah berakhir.');
+            // Friendly "undangan sudah berakhir" page (P3-T2), still 410 so
+            // search engines and messengers treat it as gone.
+            $response = Inertia::render('Invitation/Expired', [
+                'invitation' => [
+                    'id' => $invitation->id,
+                    'title' => $invitation->title,
+                    'slug' => $invitation->slug,
+                ],
+            ])->toResponse($request);
+
+            $response->setStatusCode(410);
+
+            return $response;
         }
 
         app(TenantContext::class)->set($invitation->id);

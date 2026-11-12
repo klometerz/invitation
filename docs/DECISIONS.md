@@ -270,4 +270,81 @@ Gallery images 2 MB -> 5 MB, plus explicit limits for hero (8 MB), music
 `docs/DEPLOY.md` documents the required `php.ini` values so PHP never rejects
 a file the app would accept.
 
+---
+
+# Phase 3 decisions
+
+## P3-A - Task order: Settings and Packages before the landing page
+
+**Decided by:** agent.
+`AGENTS.md` lists P3-T1..T3-T9 in one order, but the landing page (P3-T6)
+reads packages and settings, and the dashboard (P3-T8) reads payment data.
+Settings (T5), Packages (T1) and Dashboard (T8) were built first so the rest
+had real data to render.
+
+## P3-B - `demo` and `demo-assets` are reserved slugs
+
+**Decided by:** agent, discovered by smoke test.
+`public/demo/` (the demo SVGs) is a physical directory, and PHP's dev server
+serves it BEFORE Laravel routes - so `/demo` returned the server's own 404
+even though the route existed. Assets moved to `public/demo-assets/`, and
+both `demo` and `demo-assets` were added to the reserved list so a client can
+never take those paths.
+
+## P3-C - Expired page returns HTTP 410 with a rendered page
+
+**Decided by:** agent.
+`AGENTS.md` 5.6 wants a friendly page. `ResolveInvitation` now renders
+`Invitation/Expired` **with status 410** (not 200), so search engines and
+messengers treat the invitation as gone while humans see a proper message.
+Guest-code endpoints (RSVP, capture) return **403** for expired invitations.
+
+## P3-D - RSVP/capture rejected when the invitation is not active
+
+**Decided by:** agent.
+`ResolveInvitationFromGuestCode` now rejects any lifecycle state other than
+`active` with 403, except for an admin previewing a draft. This closes the gap
+where an RSVP could be accepted for a draft invitation.
+
+## P3-E - Photo capture is re-encoded, never stored as received
+
+**Decided by:** agent (P3-T4).
+The base64 string is length-capped before decoding, the decoded bytes are
+capped again, `getimagesizefromstring()` must succeed, dimensions are bounded
+(4000 px), and the image is decoded and re-encoded to **JPEG** through GD.
+This strips metadata and any embedded payload, and makes transparency safe.
+Limits: 4 MB base64, ~2.5 MB decoded, 4000 px.
+
+## P3-F - Rate limiters keyed by IP + guest code
+
+**Decided by:** agent (P3-T4).
+`rsvp` = 6/min per IP+code, `photobooth-capture` = 10/min per IP+code,
+`login` = 5/min per IP. Keying on both prevents one guest's flood from locking
+out the whole venue's IP, and prevents an attacker from spreading load across
+many codes.
+
+## P3-G - `invitations:purge` is NOT scheduled
+
+**Decided by:** agent, pending owner.
+`invitations:expire` is scheduled hourly (safe, idempotent). `purge` is
+dry-run by default and requires `--force`, but it is deliberately left out of
+the scheduler because the retention period is an owner decision
+(`AGENTS.md` 11.3). `routes/console.php` contains the one line to enable it.
+
+## P3-H - Settings cache must be flushed per test
+
+**Decided by:** agent, found by a failing test.
+`App\Support\Settings` memoizes in a static property. Without a reset, one
+test's saved settings leaked into the next. `tests/TestCase.php` now calls
+`Settings::flush()` in `setUp()`, and every write flushes immediately.
+
+## P3-I - Demo content is fake and flagged, not a real client
+
+**Decided by:** agent (P3-T7).
+The demo uses an invented couple ("Pasangan Pertama" / "Pasangan Kedua"),
+local SVGs under `public/demo-assets/`, no bank accounts and no music, plus a
+fixed banner. `is_demo` is exposed to the public page so the UI can mark it
+read-only.
+
+
 

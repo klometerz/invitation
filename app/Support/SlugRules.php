@@ -30,6 +30,11 @@ class SlugRules
         'build',
         'up',
         'v',
+        // Reserved by the demo invitation (P3-T7) and by the static demo asset
+        // folder. A physical directory under public/ also shadows a route, so
+        // this must never be handed to a client.
+        'demo',
+        'demo-assets',
         'terms',
         'privacy',
         'pricing',

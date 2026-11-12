@@ -18,6 +18,15 @@ class Settings
     /** @var array<string, mixed>|null */
     private static ?array $cache = null;
 
+    /**
+     * Forget the memoized values. Called after every write, and by the test
+     * base class so one test can never observe another test's settings.
+     */
+    public static function flush(): void
+    {
+        self::$cache = null;
+    }
+
     public static function get(string $key, mixed $default = null): mixed
     {
         $all = self::all();
@@ -56,10 +65,5 @@ class Settings
             // Never fail a page render because settings are unreadable.
             return self::$cache = [];
         }
-    }
-
-    public static function flush(): void
-    {
-        self::$cache = null;
     }
 }

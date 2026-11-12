@@ -56,7 +56,16 @@ class ResolveInvitationFromGuestCode
         }
 
         if ($outcome === InvitationAccess::EXPIRED) {
+            // P3-T4: RSVP and capture are rejected once an invitation is not
+            // active. 403 keeps the JSON contract the frontend already reads.
             abort(403, 'Undangan sudah berakhir.');
+        }
+
+        // A not-yet-live invitation must not accept submissions either. An
+        // admin previewing it is the only exception.
+        if (InvitationAccess::lifecycle($invitation) !== 'active'
+            && ! InvitationAccess::isAdminPreview($request)) {
+            abort(403, 'Undangan belum aktif.');
         }
 
         $context->set($invitation->id);

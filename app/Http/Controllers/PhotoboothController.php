@@ -12,6 +12,15 @@ use Inertia\Inertia;
 
 class PhotoboothController extends Controller
 {
+    /** Max accepted base64 string (includes the data URL prefix). */
+    private const MAX_BASE64_LENGTH = 4_000_000;
+
+    /** Max decoded image size (~2.5 MB). */
+    private const MAX_BYTES = 2_500_000;
+
+    /** Max width/height in pixels. */
+    private const MAX_DIMENSION = 4000;
+
     /**
      * Halaman photobooth publik untuk satu undangan.
      * The tenant was already resolved by the route middleware, so the guest
@@ -125,49 +134,109 @@ class PhotoboothController extends Controller
     {
         $validated = $request->validate([
             'guest_code' => 'required|string',
-            'image' => 'required|string', // base64 data URL
+            'image' => 'required|string',
             'message' => 'nullable|string|max:500',
         ]);
 
         // Scoped: a code from another invitation is simply not found.
         $guest = Guest::where('guest_code', $validated['guest_code'])->first();
 
-        // Validasi ulang di server â€” JANGAN percaya frontend
+        // Re-checked on the server: never trust the frontend.
         if (! $guest || $guest->checkin_status !== 'arrived') {
             return response()->json([
                 'message' => 'Akses ditolak. Anda belum check-in.',
             ], 403);
         }
 
-        $invitationId = app(TenantContext::class)->require();
+        $invitation = \App\Models\Invitation::findOrFail(app(TenantContext::class)->require());
 
-        // Decode base64 image
-        $imageData = $validated['image'];
-        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches)) {
-            $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
-            $imageData = substr($imageData, strpos($imageData, ',') + 1);
-            $imageData = base64_decode($imageData);
+        // P3-T3: per-guest capture limit.
+        $photoLimit = $invitation->limit('max_photobooth_per_guest');
 
-            $filename = "invitations/{$invitationId}/photobooth/".Str::random(20).'.'.$extension;
-            Storage::disk('public')->put($filename, $imageData);
+        if ($photoLimit !== null) {
+            $taken = PhotoboothPhoto::where('guest_id', $guest->id)->count();
 
-            $photo = PhotoboothPhoto::create([
-                'invitation_id' => $invitationId,
-                'guest_id' => $guest->id,
-                'image_path' => Storage::url($filename),
-                'message' => $validated['message'] ?? null,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'photo' => [
-                    'id' => $photo->id,
-                    'image_path' => $photo->image_path,
-                ],
-            ]);
+            if ($taken >= $photoLimit) {
+                return response()->json([
+                    'message' => "Batas {$photoLimit} foto per tamu sudah tercapai.",
+                ], 422);
+            }
         }
 
-        return response()->json(['message' => 'Format gambar tidak valid.'], 422);
+        // P3-T4 (K7): cap the payload BEFORE decoding it.
+        if (strlen($validated['image']) > self::MAX_BASE64_LENGTH) {
+            return response()->json(['message' => 'Ukuran gambar terlalu besar.'], 422);
+        }
+
+        // Only real image data URLs are accepted.
+        if (! preg_match('/^data:image\/(png|jpe?g|webp);base64,/', $validated['image'])) {
+            return response()->json(['message' => 'Format gambar tidak valid.'], 422);
+        }
+
+        $raw = base64_decode(substr($validated['image'], strpos($validated['image'], ',') + 1), true);
+
+        if ($raw === false || $raw === '') {
+            return response()->json(['message' => 'Data gambar rusak.'], 422);
+        }
+
+        if (strlen($raw) > self::MAX_BYTES) {
+            return response()->json(['message' => 'Ukuran gambar terlalu besar.'], 422);
+        }
+
+        $info = @getimagesizefromstring($raw);
+
+        if ($info === false) {
+            return response()->json(['message' => 'Berkas bukan gambar yang valid.'], 422);
+        }
+
+        [$width, $height] = $info;
+
+        if ($width < 1 || $height < 1 || $width > self::MAX_DIMENSION || $height > self::MAX_DIMENSION) {
+            return response()->json(['message' => 'Dimensi gambar tidak didukung.'], 422);
+        }
+
+        $source = @imagecreatefromstring($raw);
+
+        if ($source === false) {
+            return response()->json(['message' => 'Gambar tidak dapat diproses.'], 422);
+        }
+
+        // Re-encode to JPEG on a white canvas: strips metadata and any
+        // embedded payload, and makes transparency safe.
+        $canvas = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefilledrectangle($canvas, 0, 0, $width, $height, $white);
+        imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height);
+
+        ob_start();
+        imagejpeg($canvas, null, 85);
+        $jpeg = ob_get_clean();
+
+        imagedestroy($source);
+        imagedestroy($canvas);
+
+        if (! is_string($jpeg) || $jpeg === '') {
+            return response()->json(['message' => 'Gambar tidak dapat disimpan.'], 422);
+        }
+
+        $invitationId = $invitation->id;
+        $filename = "invitations/{$invitationId}/photobooth/".Str::random(20).'.jpg';
+        Storage::disk('public')->put($filename, $jpeg);
+
+        $photo = PhotoboothPhoto::create([
+            'invitation_id' => $invitationId,
+            'guest_id' => $guest->id,
+            'image_path' => Storage::url($filename),
+            'message' => $validated['message'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'photo' => [
+                'id' => $photo->id,
+                'image_path' => $photo->image_path,
+            ],
+        ]);
     }
 
     public function destroy($id)
@@ -188,8 +257,17 @@ class PhotoboothController extends Controller
     {
         $invitation = \App\Models\Invitation::findOrFail(app(TenantContext::class)->require());
 
-        $photos = PhotoboothPhoto::with('guest')
-            ->latest()
+        // P3-T9: the memory book renders every photo into one document, so it
+        // is paginated in fixed batches to keep the PDF/render bounded.
+        $perPage = 200;
+        $page = max(1, (int) $request->query('page', 1));
+
+        $query = PhotoboothPhoto::with('guest')->latest();
+
+        $total = (clone $query)->count();
+
+        $photos = $query
+            ->forPage($page, $perPage)
             ->get()
             ->map(function ($photo) {
                 return [
@@ -202,7 +280,10 @@ class PhotoboothController extends Controller
 
         return Inertia::render('Admin/PhotoboothPrint', [
             'photos' => $photos,
-            'total' => $photos->count(),
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'lastPage' => max(1, (int) ceil($total / $perPage)),
             'meta' => \App\Support\InvitationPresenter::for($invitation)->toArray(),
         ]);
     }

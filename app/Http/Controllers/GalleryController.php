@@ -32,8 +32,25 @@ class GalleryController extends Controller
 
         if ($request->hasFile('images')) {
             $invitationId = app(TenantContext::class)->require();
+            $invitation = \App\Models\Invitation::findOrFail($invitationId);
 
-            foreach ($request->file('images') as $image) {
+            // P3-T3: enforce max_gallery_images. Checked BEFORE writing, so a
+            // rejected batch never leaves a partial upload behind.
+            $limit = $invitation->limit('max_gallery_images');
+            $files = $request->file('images');
+
+            if ($limit !== null) {
+                $existing = Gallery::count();
+
+                if ($existing + count($files) > $limit) {
+                    return back()->withErrors([
+                        'images' => "Batas paket adalah {$limit} foto galeri. Saat ini "
+                            ."{$existing} foto, Anda memilih ".count($files).'.',
+                    ]);
+                }
+            }
+
+            foreach ($files as $image) {
                 // Per-tenant directory (AGENTS.md 5.9).
                 $path = $image->store("invitations/{$invitationId}/gallery", 'public');
 

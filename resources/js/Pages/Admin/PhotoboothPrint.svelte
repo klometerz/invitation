@@ -4,7 +4,12 @@
         photos = [],
         total = 0,
         meta = {},
+        page = 1,
+        lastPage = 1,
+        perPage = 200,
     } = $props();
+
+    const isMultiPage = $derived(lastPage > 1);
 
     const coupleNames = $derived(meta?.coupleNames || "");
     const dateText = $derived(meta?.dateText || "");
@@ -29,10 +34,25 @@
     <div class="toolbar no-print">
         <div class="toolbar-info">
             <span>{total} foto akan dicetak</span>
+            {#if isMultiPage}
+                <span class="toolbar-warn">
+                    Bagian {page} dari {lastPage} ({perPage} foto per bagian)
+                </span>
+            {/if}
         </div>
-        <button class="btn-print" onclick={handlePrint}>
-            🖨 Print / Save as PDF
-        </button>
+        <div class="toolbar-actions">
+            {#if isMultiPage}
+                {#if page > 1}
+                    <a class="btn-page" href={`/admin/photobooth/print?page=${page - 1}`}>← Sebelumnya</a>
+                {/if}
+                {#if page < lastPage}
+                    <a class="btn-page" href={`/admin/photobooth/print?page=${page + 1}`}>Berikutnya →</a>
+                {/if}
+            {/if}
+            <button class="btn-print" onclick={handlePrint}>
+                🖨 Print / Save as PDF
+            </button>
+        </div>
     </div>
 
     <!-- COVER PAGE -->
@@ -141,6 +161,29 @@
     .toolbar-info {
         font-size: 13px;
         color: rgba(255, 255, 255, 0.7);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .toolbar-warn {
+        font-size: 11.5px;
+        color: #fbbf24;
+    }
+
+    .toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-page {
+        color: rgba(255, 255, 255, 0.85);
+        text-decoration: none;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 8px 12px;
+        border-radius: 8px;
     }
 
     .btn-print {

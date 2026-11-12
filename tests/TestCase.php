@@ -14,6 +14,10 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // The settings reader caches per process; reset it so no test can
+        // observe values written by another test (or by a previous request).
+        \App\Support\Settings::flush();
+
         $this->assertTestingDatabaseIsIsolated();
     }
 

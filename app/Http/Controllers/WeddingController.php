@@ -51,6 +51,8 @@ class WeddingController extends Controller
             'theme' => [
                 'key' => $invitation->theme?->key ?? 'heritage-gold',
             ],
+            // P3-T7: demo content is read-only for non-admin visitors.
+            'isDemo' => (bool) $invitation->is_demo,
             'content' => $invitation->content,
             'sections' => $invitation->resolvedSections(),
             'features' => $invitation->featureFlags(),

@@ -120,6 +120,13 @@ class InvitationController extends Controller
         $invitation = Invitation::findOrFail($id);
         $validated = $this->validated($request, $invitation->id);
 
+        // P3-T2: guard the lifecycle instead of letting any status jump.
+        if (! \App\Support\InvitationLifecycle::canTransition($invitation->status, $validated['status'])) {
+            return back()->withErrors([
+                'status' => "Status tidak bisa diubah dari \"{$invitation->status}\" ke \"{$validated['status']}\".",
+            ]);
+        }
+
         $validated['is_active'] = $validated['status'] === 'active';
         $validated['sections'] = $this->normalizeSections($validated['sections'] ?? []);
 
@@ -128,6 +135,31 @@ class InvitationController extends Controller
         return redirect()
             ->route('admin.invitations.index')
             ->with('success', 'Undangan berhasil diperbarui.');
+    }
+
+    /**
+     * P3-T2: draft|expired -> active, stamping the active window. When the
+     * package defines `active_days_after_event` and the event date is known,
+     * `active_until` is computed; otherwise it stays whatever the owner set.
+     */
+    public function activate(int $id)
+    {
+        $invitation = Invitation::findOrFail($id);
+
+        if (! \App\Support\InvitationLifecycle::canTransition($invitation->status, 'active')
+            || $invitation->status === 'active') {
+            return back()->with('error', 'Undangan ini belum bisa diaktifkan.');
+        }
+
+        $invitation->forceFill([
+            'status' => 'active',
+            'is_active' => true,
+            'active_from' => $invitation->active_from ?? now(),
+            'active_until' => $invitation->active_until
+                ?? \App\Support\InvitationLifecycle::defaultActiveUntil($invitation),
+        ])->save();
+
+        return back()->with('success', 'Undangan "'.$invitation->title.'" diaktifkan.');
     }
 
     /**

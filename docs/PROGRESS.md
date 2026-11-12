@@ -3,11 +3,11 @@
 Handoff document. Read this first in a new session, then `AGENTS.md` §0-6 and
 the current phase.
 
-Last updated: **2026-11-12** (Phase 2 complete, awaiting the gate).
+Last updated: **2026-11-12** (Phase 3 complete, awaiting the gate).
 Branch: `feature/multi-tenant`.
 
-Git state: **Phase 0 + Phase 1 committed** (`b379f14` and earlier). **Phase 2 is
-uncommitted** — it is waiting for the owner's review/approval.
+Git state: **Phase 0, 1 and 2 committed** (`8cf46f4`, `b379f14` and earlier).
+**Phase 3 is uncommitted** - it is waiting for the owner's review/approval.
 
 ---
 
@@ -48,8 +48,8 @@ Related fix after approval: the owner corrected `.env` to the local DB, so the
 
 ## Phase 2 - Dynamic content, sections, themes
 
-**All tasks implemented. 67 tests / 221 assertions green. `npm run build` green.
-2 migrations applied locally (22 -> 27 pending? see below).**
+**All tasks implemented. 67 tests / 221 assertions green at the time.
+`npm run build` green. Approved by the owner and committed as `8cf46f4`.**
 
 | Task | Status | What was built |
 |---|---|---|
@@ -87,13 +87,52 @@ Related fix after approval: the owner corrected `.env` to the local DB, so the
 
 ---
 
+## Phase 3 - Commercial layer
+
+**All Phase 3 tasks implemented. 90 tests / 339 assertions green.
+`npm run build` green. Uncommitted pending owner review.**
+
+| Task | Status | What was built |
+|---|---|---|
+| P3-T1 Packages GUI | DONE | `/admin/packages` CRUD. Toggles + limit fields rendered from `config/features.php`. Nullable price renders "Hubungi kami". Deleting a package falls back to "all features on". |
+| P3-T2 Lifecycle | DONE | `App\Support\InvitationLifecycle` transition guard (archived is terminal), `activate` action stamping `active_from` + computing `active_until` from `active_days_after_event`, `Invitation/Expired.svelte` (HTTP 410), `invitations:expire` (hourly) and `invitations:purge` (dry-run default, `--force`, `--days=`) |
+| P3-T3 Limits | DONE | `max_guests` (create + import with skipped-row count, no partial writes), `max_gallery_images` (checked before writing), `max_photobooth_per_guest` |
+| P3-T4 Hardening | DONE | `rsvp`/`photobooth-capture`/`login` rate limiters; base64 capped before and after decode, `getimagesizefromstring`, 4000 px cap, GD re-encode to JPEG; `checked_in_by` from the authenticated user only (K8 verified); RSVP/capture rejected unless the invitation is active |
+| P3-T5 Settings | DONE | `/admin/settings`: business name, WhatsApp, Instagram, platform logo, footer text. Shared as `platform{...}`; landing CTA built only from a configured number |
+| P3-T6 Landing page | DONE | `/` marketing page (independent hero, 6-step flow, packages from DB, FAQ, WhatsApp CTA, footer), `/terms` + `/privacy` with `TODO(owner): legal review` |
+| P3-T7 Demo | DONE | `DemoInvitationSeeder` (idempotent, `is_demo`), `demo:reset`, local SVGs in `public/demo-assets/`, pre-checked-in demo guest, demo banner |
+| P3-T8 Dashboard | DONE | `/admin`: status counts, unpaid/partial invoices, upcoming 30 days, expiring within 7 days, quick actions |
+| P3-T9 Memory book | DONE | Print page paginated at 200 photos with page navigation and a warning, tenant-scoped, gated by `memory_book` |
+
+### New tests
+
+`tests/Feature/Phase3Test.php` (23 tests): expired page + RSVP rejection,
+activation window, transition guard, expire/purge commands (incl. dry-run),
+guest/photo limits, RSVP rate limiting, oversized + non-image base64, JPEG
+re-encode, `checked_in_by` spoofing, settings round-trip, landing "Hubungi
+kami", legal pages, package CRUD, demo idempotency and banner.
+
+### Bugs found and fixed during Phase 3
+
+1. `/demo` returned 404 because `public/demo/` shadowed the route (see
+   `DECISIONS.md` P3-B) - assets moved, both slugs reserved.
+2. Unknown `?guest=CODE` briefly fell back to the landing page instead of
+   404; restored the Phase 1 contract.
+3. `Settings` static cache leaked between tests (`DECISIONS.md` P3-H).
+
+---
+
 ## Open questions for the owner
 
-1. **Commit strategy for Phase 2** - the diff is uncommitted. One commit, or
-   one-per-task?
+1. **Commit Phase 3?** One commit, or one-per-task?
 2. **Theme of the live wedding** - `maul-kahfi` still points at theme
-   `aurum-noctis` (`svelte_path = Wedding`). Both `heritage-gold` and
-   `minimal-light` exist now. Repoint it in P3 or leave as is?
+   `aurum-noctis`. Both `heritage-gold` and `minimal-light` exist. Repoint it?
 3. **Owner decision #2** - does `maul-kahfi` stay public as a portfolio piece?
-4. **Branding** - `settings` is empty, so the admin sidebar shows an initial
-   letter and OG images have no platform logo until P3-T5.
+4. **Branding** - `settings` is still empty, so the landing page shows
+   "Undangan Digital" placeholders until you fill `/admin/settings`.
+5. **Retention period** for `invitations:purge` (default 365 days) and whether
+   to schedule it. Currently NOT scheduled - see `DECISIONS.md` P3-G.
+6. **Legal text** for `/terms` and `/privacy` - both carry
+   `TODO(owner): legal review before publishing`.
+7. **Package prices and contents** - Basic/Plus/Premium all have
+   `price = null` and every feature on; edit them in `/admin/packages`.
