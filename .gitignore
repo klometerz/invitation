@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+AGENTS.md
+
+# Local uploads and backups (keep the tracked *.gitignore placeholders)
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/backups
