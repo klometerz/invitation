@@ -132,16 +132,26 @@
     >
         <div class="sidebar-logo">
             <div class="logo-mark">
-                <img
-                    src="/storage/logo/logo2.png"
-                    alt="Logo"
-                    class="logo-img"
-                />
+                {#if $page.props.platform?.logo_url}
+                    <img
+                        src={$page.props.platform.logo_url}
+                        alt={$page.props.platform?.name || "Logo"}
+                        class="logo-img"
+                    />
+                {:else}
+                    <span class="logo-initial">
+                        {($page.props.platform?.name || "Admin")
+                            .charAt(0)
+                            .toUpperCase()}
+                    </span>
+                {/if}
             </div>
             {#if sidebarOpen}
                 <div class="logo-text">
                     <span class="logo-title">Admin Panel</span>
-                    <span class="logo-sub">Wedding System</span>
+                    <span class="logo-sub"
+                        >{$page.props.platform?.name || "Undangan Digital"}</span
+                    >
                 </div>
             {/if}
         </div>
@@ -432,6 +442,12 @@
         align-items: center;
         justify-content: center;
         margin-bottom: 1rem;
+    }
+
+    .logo-initial {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--sidebar-bg);
     }
 
     .logo-text {

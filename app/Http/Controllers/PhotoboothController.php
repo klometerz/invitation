@@ -19,6 +19,11 @@ class PhotoboothController extends Controller
      */
     public function index(Request $request)
     {
+        $invitation = $request->attributes->get('invitation');
+        $meta = $invitation instanceof \App\Models\Invitation
+            ? \App\Support\InvitationPresenter::for($invitation)->toArray()
+            : null;
+
         $guestCode = $request->query('guest');
         $guest = $guestCode ? Guest::where('guest_code', $guestCode)->first() : null;
 
@@ -26,6 +31,7 @@ class PhotoboothController extends Controller
             return Inertia::render('Photobooth', [
                 'accessGranted' => false,
                 'reason' => 'invalid',
+                'meta' => $meta,
             ]);
         }
 
@@ -34,6 +40,7 @@ class PhotoboothController extends Controller
                 'accessGranted' => false,
                 'reason' => 'not_checked_in',
                 'guestName' => $guest->name,
+                'meta' => $meta,
             ]);
         }
 
@@ -43,6 +50,7 @@ class PhotoboothController extends Controller
                 'name' => $guest->name,
                 'guest_code' => $guest->guest_code,
             ],
+            'meta' => $meta,
         ]);
     }
 
@@ -178,6 +186,8 @@ class PhotoboothController extends Controller
 
     public function printView(Request $request)
     {
+        $invitation = \App\Models\Invitation::findOrFail(app(TenantContext::class)->require());
+
         $photos = PhotoboothPhoto::with('guest')
             ->latest()
             ->get()
@@ -193,6 +203,7 @@ class PhotoboothController extends Controller
         return Inertia::render('Admin/PhotoboothPrint', [
             'photos' => $photos,
             'total' => $photos->count(),
+            'meta' => \App\Support\InvitationPresenter::for($invitation)->toArray(),
         ]);
     }
 }

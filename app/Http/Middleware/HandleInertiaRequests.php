@@ -75,6 +75,13 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
             ],
+            // Platform branding comes from settings (P3-T5 builds the GUI);
+            // until it is filled in the UI renders a text mark, never another
+            // client's logo.
+            'platform' => [
+                'name' => \App\Support\Settings::get('business_name'),
+                'logo_url' => \App\Support\Settings::get('platform_logo'),
+            ],
         ];
     }
 }

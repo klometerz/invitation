@@ -1,5 +1,13 @@
 <script>
-    let { photos = [], total = 0 } = $props();
+    // P2-T4: the memory book cover and page headers use the presenter output.
+    let {
+        photos = [],
+        total = 0,
+        meta = {},
+    } = $props();
+
+    const coupleNames = $derived(meta?.coupleNames || "");
+    const dateText = $derived(meta?.dateText || "");
 
     function handlePrint() {
         window.print();
@@ -37,8 +45,12 @@
             </div>
             <p class="cover-subtitle">A COLLECTION OF MOMENTS</p>
             <h1 class="cover-title">Photobooth Memories</h1>
-            <div class="cover-names">Maulia & Kahfi</div>
-            <p class="cover-date">06 . 09 . 2026</p>
+            {#if coupleNames}
+                <div class="cover-names">{coupleNames}</div>
+            {/if}
+            {#if dateText}
+                <p class="cover-date">{dateText}</p>
+            {/if}
             <div class="cover-ornament-bottom">
                 <div class="diamond"></div>
             </div>
@@ -50,7 +62,9 @@
     {#each photoPages as pagePhotos, pageIndex}
         <div class="page photo-page">
             <div class="page-header">
-                <span class="page-header-text">Maulia & Kahfi</span>
+                {#if coupleNames}
+                    <span class="page-header-text">{coupleNames}</span>
+                {/if}
                 <span class="page-number"
                     >{String(pageIndex + 1).padStart(2, "0")}</span
                 >

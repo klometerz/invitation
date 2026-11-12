@@ -85,19 +85,14 @@ class Invitation extends Model
     }
 
     /**
-     * Feature keys known in v1 (P2-T1 will move this to config/features.php
-     * and render the Packages GUI from it).
+     * Feature keys from the single registry in config/features.php (P2-T1).
+     *
+     * @return list<string>
      */
-    public const FEATURES = [
-        'rsvp',
-        'gallery',
-        'music',
-        'info_section',
-        'guestbook',
-        'qr_cards',
-        'photobooth',
-        'memory_book',
-    ];
+    public static function featureKeys(): array
+    {
+        return array_keys(config('features', []));
+    }
 
     /**
      * Effective feature flags: package defaults, overridden per invitation.
@@ -109,7 +104,8 @@ class Invitation extends Model
      */
     public function featureFlags(): array
     {
-        $flags = array_fill_keys(self::FEATURES, true);
+        $keys = self::featureKeys();
+        $flags = array_fill_keys($keys, true);
 
         if ($this->package !== null) {
             $packageFeatures = is_array($this->package->features) ? $this->package->features : [];
@@ -125,6 +121,48 @@ class Invitation extends Model
     public function hasFeature(string $key): bool
     {
         return $this->featureFlags()[$key] ?? false;
+    }
+
+    /**
+     * Ordered section keys actually shown on the public page (P2-T3).
+     *
+     * Unknown keys are dropped, `welcome` is always first, and a section whose
+     * package feature is disabled is removed server-side.
+     *
+     * @return list<string>
+     */
+    public function resolvedSections(): array
+    {
+        $stored = is_array($this->sections) ? $this->sections : [];
+
+        $requested = $stored !== [] ? $stored : \App\Support\SectionRegistry::DEFAULT_ORDER;
+
+        $features = $this->featureFlags();
+        $resolved = [];
+
+        foreach ($requested as $key) {
+            if (! is_string($key) || ! \App\Support\SectionRegistry::exists($key)) {
+                continue;
+            }
+
+            if (in_array($key, $resolved, true)) {
+                continue;
+            }
+
+            $feature = \App\Support\SectionRegistry::requiredFeature($key);
+
+            if ($feature !== null && ($features[$feature] ?? false) === false) {
+                continue;
+            }
+
+            $resolved[] = $key;
+        }
+
+        // Welcome is always present and always first.
+        $resolved = array_values(array_filter($resolved, fn ($key) => $key !== 'welcome'));
+        array_unshift($resolved, 'welcome');
+
+        return $resolved;
     }
 
     /**

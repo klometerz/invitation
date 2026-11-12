@@ -86,6 +86,10 @@ class GuestController extends Controller
                 'slug' => $invitation->slug,
                 'title' => $invitation->title,
             ],
+            // P2-T8: the invite message is a template with placeholders,
+            // editable per invitation.
+            'inviteTemplate' => \App\Support\InvitationPresenter::for($invitation)->inviteMessageTemplate(),
+            'coupleNames' => \App\Support\InvitationPresenter::for($invitation)->coupleNames(),
             'filters' => [
                 'filter' => $request->filter,
                 'search' => $request->search,

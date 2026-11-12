@@ -8,7 +8,15 @@
     import ResetGuestsModal from "../../Components/Admin/ResetGuestsModal.svelte";
     import { toast } from "../../Components/Admin/toast.js";
 
-    let { guests, summary, filters, categories, invitation } = $props();
+    let {
+        guests,
+        summary,
+        filters,
+        categories,
+        invitation,
+        inviteTemplate = "",
+        coupleNames = "",
+    } = $props();
     let fileInput = $state(null);
     let isUploading = $state(false);
     let copyStatus = $state(null);
@@ -122,21 +130,16 @@
     //         return `${greeting}\n\n${intro}${quotaInfo}\n\n${linkInfo}\n\n${closing}`;
     //     }
 
+    // P2-T8: render the per-invitation template instead of hardcoded wording.
     function buildInviteMessage(guest) {
-    const greeting = `Kepada Yth.\nBapak/Ibu/Saudara/i\n${guest.name}`;
+        if (!inviteTemplate) return guest.link;
 
-    const intro = `Assalamualaikum Wr. Wb\nDengan senang hati kami mengundang Anda untuk hadir pada acara pernikahan kami`;
-
-    const linkInfo = `untuk info lengkap acara, bisa kunjungi berikut :\n${guest.link}`;
-
-    const closing = `Merupakan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir.\n\nTerima kasih atas doa dan restunya.\n\nWassalamualaikum Wr.Wb`;
-
-    const signature = `*Maulia & Kahfi*`;
-
-    const BREAK = "\n\u200B\n";
-
-    return `${greeting}${BREAK}${intro}${BREAK}${linkInfo}${BREAK}${closing}${BREAK}${signature}`;
-}
+        return inviteTemplate
+            .replaceAll("{name}", guest.name ?? "")
+            .replaceAll("{link}", guest.link ?? "")
+            .replaceAll("{quota}", String(guest.quota ?? 1))
+            .replaceAll("{couple}", coupleNames ?? "");
+    }
 
     async function copyToClipboard(text, id, failMessage = "Gagal copy link!") {
         if (navigator.clipboard && window.isSecureContext) {

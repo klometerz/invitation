@@ -1,5 +1,10 @@
 <script>
-    let { isOpen = $bindable(false), onComplete = () => {} } = $props();
+    // P2-T2: the hashtag is client content, never a platform default.
+    let {
+        isOpen = $bindable(false),
+        hashtag = "",
+        onComplete = () => {},
+    } = $props();
 
     let isVisible = $state(true);
     let isOpening = $state(false);
@@ -49,7 +54,9 @@
             <div class="button-ornament"></div>
         </button>
         <p class="tap-hint">Tap to enter</p>
-        <p class="hashtag-label">#KALItech</p>
+        {#if hashtag}
+            <p class="hashtag-label">{hashtag}</p>
+        {/if}
     </div>
 {/if}
     </div>

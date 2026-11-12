@@ -62,6 +62,7 @@ class InvitationController extends Controller
             'themes' => $this->themeOptions(),
             'packages' => $this->packageOptions(),
             'reservedSlugs' => SlugRules::RESERVED,
+            'sectionOptions' => $this->sectionOptions(),
         ]);
     }
 
@@ -72,6 +73,7 @@ class InvitationController extends Controller
         $validated['user_id'] = $request->user()->id;
         $validated['content'] = $this->defaultContent($validated['title']);
         $validated['is_active'] = $validated['status'] === 'active';
+        $validated['sections'] = $this->normalizeSections($validated['sections'] ?? []);
 
         $invitation = Invitation::create($validated);
 
@@ -104,11 +106,12 @@ class InvitationController extends Controller
                 'paid_at' => $invitation->paid_at?->format('Y-m-d\TH:i'),
                 'internal_notes' => $invitation->internal_notes,
                 'is_demo' => $invitation->is_demo,
-                'sections' => $invitation->sections ?? [],
+                'sections' => $invitation->resolvedSections(),
             ],
             'themes' => $this->themeOptions(),
             'packages' => $this->packageOptions(),
             'reservedSlugs' => SlugRules::RESERVED,
+            'sectionOptions' => $this->sectionOptions(),
         ]);
     }
 
@@ -118,6 +121,7 @@ class InvitationController extends Controller
         $validated = $this->validated($request, $invitation->id);
 
         $validated['is_active'] = $validated['status'] === 'active';
+        $validated['sections'] = $this->normalizeSections($validated['sections'] ?? []);
 
         $invitation->update($validated);
 
@@ -203,7 +207,48 @@ class InvitationController extends Controller
             'internal_notes' => ['nullable', 'string'],
             'is_demo' => ['boolean'],
             'sections' => ['nullable', 'array'],
+            'sections.*' => ['string', 'in:'.implode(',', \App\Support\SectionRegistry::keys())],
         ]);
+    }
+
+    /**
+     * Keep the operator's order, drop empties/duplicates and force `welcome`
+     * first (AGENTS.md 5.5). Feature filtering happens on read in
+     * Invitation::resolvedSections().
+     *
+     * @param  list<string>  $sections
+     * @return list<string>
+     */
+    private function normalizeSections(array $sections): array
+    {
+        $clean = [];
+
+        foreach ($sections as $key) {
+            if (is_string($key) && \App\Support\SectionRegistry::exists($key) && ! in_array($key, $clean, true)) {
+                $clean[] = $key;
+            }
+        }
+
+        if ($clean === []) {
+            return \App\Support\SectionRegistry::DEFAULT_ORDER;
+        }
+
+        $clean = array_values(array_filter($clean, fn ($key) => $key !== 'welcome'));
+        array_unshift($clean, 'welcome');
+
+        return $clean;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, feature: ?string}>
+     */
+    private function sectionOptions(): array
+    {
+        return array_map(fn (string $key) => [
+            'key' => $key,
+            'label' => \App\Support\SectionRegistry::label($key),
+            'feature' => \App\Support\SectionRegistry::requiredFeature($key),
+        ], \App\Support\SectionRegistry::keys());
     }
 
     private function defaultContent(string $title): array

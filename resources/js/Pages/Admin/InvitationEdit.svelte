@@ -128,6 +128,43 @@
         announcementsList = announcementsList.filter((_, i) => i !== index);
     }
 
+    // ===== P2-T2 / P2-T8: branding, tips, invite template, gift =====
+    let hashtag = $state(content.hero?.hashtag || "");
+    let logoFile = $state(null);
+    let currentLogo = $state(content.logo_url || null);
+    let loadingTips = $state((content.loading_tips || []).join("\n"));
+    let inviteTemplate = $state(content.invite_message_template || "");
+    let giftAccounts = $state(
+        content.thanks?.bank_accounts?.length
+            ? [...content.thanks.bank_accounts]
+            : [],
+    );
+    let qrisFile = $state(null);
+    let currentQris = $state(content.thanks?.qris_image_url || null);
+
+    function addGiftAccount() {
+        giftAccounts = [...giftAccounts, { bank: "", number: "", holder: "" }];
+    }
+
+    function removeGiftAccount(index) {
+        giftAccounts = giftAccounts.filter((_, i) => i !== index);
+    }
+
+    function previewMessage() {
+        const couple = [
+            mempelai.wanita.nama_panggilan,
+            mempelai.pria.nama_panggilan,
+        ]
+            .filter(Boolean)
+            .join(" & ");
+
+        return (inviteTemplate || "")
+            .replaceAll("{name}", "Budi Santoso")
+            .replaceAll("{link}", "https://contoh.id/nama-pasangan?guest=budi-abcde")
+            .replaceAll("{quota}", "2")
+            .replaceAll("{couple}", couple || "Nama & Pasangan");
+    }
+
     // function addStory() {
     //     storiesList = [...storiesList, { tahun: "", judul: "", deskripsi: "" }];
     // }
@@ -164,6 +201,10 @@
         formData.append("mempelai[wanita][ayah]", mempelai.wanita.ayah);
         formData.append("mempelai[wanita][ibu]", mempelai.wanita.ibu);
         formData.append("acara", JSON.stringify(acaraList));
+        formData.append("hero[hashtag]", hashtag);
+        formData.append("loading_tips", loadingTips);
+        formData.append("invite_message_template", inviteTemplate);
+        formData.append("thanks_accounts", JSON.stringify(giftAccounts));
         // formData.append("stories", JSON.stringify(storiesList));
         formData.append("gratitude_message", gratitudeMessage);
         formData.append("verses", JSON.stringify(versesList));
@@ -175,6 +216,8 @@
         if (heroBackgroundFile)
             formData.append("hero_background", heroBackgroundFile);
         if (heroMusicFile) formData.append("hero_music", heroMusicFile);
+        if (logoFile) formData.append("logo", logoFile);
+        if (qrisFile) formData.append("qris_image", qrisFile);
         if (priaFotoFile) formData.append("mempelai_pria_foto", priaFotoFile);
         if (wanitaFotoFile)
             formData.append("mempelai_wanita_foto", wanitaFotoFile);
@@ -1137,6 +1180,123 @@
         </div>
     </div>
 
+    <!-- BRANDING, TIPS, INVITE MESSAGE & GIFT -->
+    <div class="form-card">
+        <div class="form-card-header">
+            <div>
+                <h2 class="form-card-title">Branding &amp; Pesan Undangan</h2>
+                <p class="form-card-sub">
+                    Logo, tips loading, template pesan WhatsApp, dan rekening
+                    hadiah. Kosongkan untuk menyembunyikan bagian tersebut.
+                </p>
+            </div>
+        </div>
+        <div class="form-body">
+            <div class="form-grid form-grid-2">
+                <div class="field">
+                    <label class="label">Hashtag / label pembuka</label>
+                    <input
+                        type="text"
+                        class="input"
+                        bind:value={hashtag}
+                        placeholder="#NamaPasangan"
+                    />
+                </div>
+                <div class="field">
+                    <label class="label">Logo undangan</label>
+                    {#if currentLogo}
+                        <img src={currentLogo} alt="Logo" class="media-preview" />
+                    {/if}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="input"
+                        onchange={(e) => (logoFile = e.currentTarget.files[0])}
+                    />
+                </div>
+            </div>
+
+            <div class="form-grid form-grid-2">
+                <div class="field">
+                    <label class="label">Tips saat loading (satu per baris)</label>
+                    <textarea
+                        class="input textarea"
+                        rows="4"
+                        bind:value={loadingTips}
+                        placeholder="Love is patient...&#10;Two souls, one heart..."
+                    ></textarea>
+                </div>
+                <div class="field">
+                    <label class="label">Gambar QRIS</label>
+                    {#if currentQris}
+                        <img src={currentQris} alt="QRIS" class="media-preview" />
+                    {/if}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="input"
+                        onchange={(e) => (qrisFile = e.currentTarget.files[0])}
+                    />
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">
+                    Template pesan undangan (placeholder: {`{name}`}
+                    {`{link}`} {`{quota}`} {`{couple}`})
+                </label>
+                <textarea
+                    class="input textarea"
+                    rows="8"
+                    bind:value={inviteTemplate}
+                    placeholder="Kosongkan untuk memakai template bawaan."
+                ></textarea>
+                {#if inviteTemplate}
+                    <p class="label" style="margin-top: 8px;">Pratinjau:</p>
+                    <pre class="message-preview">{previewMessage()}</pre>
+                {/if}
+            </div>
+
+            <div class="field">
+                <label class="label">Rekening hadiah</label>
+                {#each giftAccounts as account, i}
+                    <div class="form-grid form-grid-3" style="margin-bottom: 8px;">
+                        <input
+                            type="text"
+                            class="input"
+                            placeholder="Bank"
+                            bind:value={account.bank}
+                        />
+                        <input
+                            type="text"
+                            class="input"
+                            placeholder="Nomor"
+                            bind:value={account.number}
+                        />
+                        <div style="display: flex; gap: 8px;">
+                            <input
+                                type="text"
+                                class="input"
+                                placeholder="Atas nama"
+                                bind:value={account.holder}
+                            />
+                            <button
+                                type="button"
+                                class="btn-mini"
+                                onclick={() => removeGiftAccount(i)}
+                            >
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                {/each}
+                <button type="button" class="btn-mini" onclick={addGiftAccount}>
+                    + Tambah rekening
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- BOTTOM SAVE BUTTON -->
     <button class="btn-save-bottom" onclick={handleSubmit} disabled={isSaving}>
         {isSaving ? "Menyimpan..." : "Simpan Semua Perubahan"}
@@ -1144,6 +1304,37 @@
 </AdminLayout>
 
 <style>
+    .message-preview {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        font-family: inherit;
+        color: var(--text-secondary);
+        margin: 4px 0 0;
+    }
+
+    .btn-mini {
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-family: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .btn-mini:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
     /* SAVE BAR */
     .save-bar {
         background: var(--card);

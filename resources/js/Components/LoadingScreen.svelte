@@ -2,23 +2,23 @@
     import { onMount } from "svelte";
     import { fade, fly } from "svelte/transition";
 
+    // P2-T2: nothing about a specific couple is hardcoded here. Everything
+    // comes from the invitation presenter via the theme contract.
     let {
         guestName = null,
-        logoUrl = "/mk.png",
+        logoUrl = null,
+        coupleNames = "",
+        dateText = "",
+        tips = [],
         onComplete = () => {},
     } = $props();
 
     let progress = $state(0);
     let currentTip = $state(0);
     let showContent = $state(false);
+    let logoFailed = $state(false);
 
-    const tips = [
-        "Love is patient, love is kind...",
-        "Two souls, one heart...",
-        "Forever starts here...",
-        "A moment to remember...",
-        "Preparing your invitation...",
-    ];
+    const activeTips = $derived(Array.isArray(tips) ? tips.filter(Boolean) : []);
 
     onMount(() => {
         showContent = true;
@@ -34,7 +34,9 @@
         }, 300);
 
         const tipInterval = setInterval(() => {
-            currentTip = (currentTip + 1) % tips.length;
+            if (activeTips.length > 0) {
+                currentTip = (currentTip + 1) % activeTips.length;
+            }
         }, 4000);
 
         return () => {
@@ -42,7 +44,6 @@
             clearInterval(tipInterval);
         };
     });
-    
 </script>
 
 {#if showContent}
@@ -78,16 +79,18 @@
                 in:fade={{ delay: 600, duration: 1200 }}
             >
                 <div class="logo-wrapper">
-                    <img
-                        src={logoUrl}
-                        alt="Wedding Logo"
-                        class="wedding-logo"
-                        onerror={(e) => {
-                            e.target.style.display = "none";
-                            e.target.parentElement.innerHTML =
-                                '<div class="logo-fallback"><p class="names-fallback"><span>Maul</span> <span class="amp">&</span> <span>Kahfi</span></p></div>';
-                        }}
-                    />
+                    {#if logoUrl && !logoFailed}
+                        <img
+                            src={logoUrl}
+                            alt={coupleNames || "Wedding Logo"}
+                            class="wedding-logo"
+                            onerror={() => (logoFailed = true)}
+                        />
+                    {:else if coupleNames}
+                        <div class="logo-fallback">
+                            <p class="names-fallback">{coupleNames}</p>
+                        </div>
+                    {/if}
                 </div>
             </div>
 
@@ -96,7 +99,9 @@
                 in:fade={{ delay: 1000, duration: 800 }}
             >
                 <p class="subtitle">The Wedding</p>
-                <p class="date">6 SEPTEMBER 2026</p>
+                {#if dateText}
+                    <p class="date">{dateText}</p>
+                {/if}
             </div>
 
             {#if guestName}
@@ -124,16 +129,18 @@
                 </p>
             </div>
 
-            <div
-                class="tips-container"
-                in:fade={{ delay: 1600, duration: 600 }}
-            >
-                {#key currentTip}
-                    <p class="tip" in:fade={{ duration: 600 }}>
-                        {tips[currentTip]}
-                    </p>
-                {/key}
-            </div>
+            {#if activeTips.length > 0}
+                <div
+                    class="tips-container"
+                    in:fade={{ delay: 1600, duration: 600 }}
+                >
+                    {#key currentTip}
+                        <p class="tip" in:fade={{ duration: 600 }}>
+                            {activeTips[currentTip]}
+                        </p>
+                    {/key}
+                </div>
+            {/if}
         </div>
     </div>
 {/if}

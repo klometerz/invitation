@@ -1,34 +1,58 @@
 <script>
-    import { onMount } from "svelte";
     import { fade } from "svelte/transition";
-    import Curtain from "../Components/Curtain.svelte";
-    import LoadingScreen from "../Components/LoadingScreen.svelte";
-    import EventSection from "../Components/Sections/EventSection.svelte";
-    import InfoSection from "../Components/Sections/InfoSection.svelte";
-    // import StorySection from "../Components/Sections/StorySection.svelte";
-    import GratitudeSection from "../Components/Sections/GratitudeSection.svelte";
-    import GallerySection from "../Components/Sections/GallerySection.svelte";
-    import RSVPSection from "../Components/Sections/RSVPSection.svelte";
-    import MusicPlayer from "../Components/MusicPlayer.svelte";
-    import ThanksSection from "../Components/Sections/ThankSection.svelte";
+    import Curtain from "../../Components/Curtain.svelte";
+    import LoadingScreen from "../../Components/LoadingScreen.svelte";
+    import MusicPlayer from "../../Components/MusicPlayer.svelte";
+    import EventSection from "./sections/EventSection.svelte";
+    import InfoSection from "./sections/InfoSection.svelte";
+    import GratitudeSection from "./sections/GratitudeSection.svelte";
+    import GallerySection from "./sections/GallerySection.svelte";
+    import RSVPSection from "./sections/RSVPSection.svelte";
+    import ThanksSection from "./sections/ThankSection.svelte";
 
-    let { invitation, content, guestData, galleries } = $props();
+    // Theme contract (AGENTS.md 5.8). Every value comes from the server; this
+    // theme never invents a name, a date or a logo.
+    let {
+        invitation = null,
+        content = {},
+        sections = [],
+        features = {},
+        guestData = null,
+        galleries = [],
+        meta = {},
+    } = $props();
 
-    let appState = $state("curtain");
-    // let appState = $state("loading");
-    let musicRef = $state(null);
-    let scrollContainer = $state(null);
-
-    const sections = [
+    const DEFAULT_SECTIONS = [
         "welcome",
-        "story",
+        "verses",
         "event",
         "info",
         "gallery",
         "rsvp",
         "thanks",
     ];
-    //   const sections = ["welcome", "story", "event", "rsvp", "thanks"];
+
+    const activeSections = $derived(
+        Array.isArray(sections) && sections.length > 0
+            ? sections
+            : DEFAULT_SECTIONS,
+    );
+
+    const musicUrl = $derived(
+        features?.music === false ? null : content?.hero?.music_url || null,
+    );
+    const showPhotobooth = $derived(
+        features?.photobooth !== false &&
+            guestData?.checkin_status === "arrived" &&
+            Boolean(meta?.photoboothUrl),
+    );
+    const logoUrl = $derived(meta?.logoUrl || null);
+    const coupleNames = $derived(meta?.coupleNames || "");
+    const dateText = $derived(meta?.dateText || "");
+
+    let appState = $state("curtain");
+    let musicRef = $state(null);
+    let scrollContainer = $state(null);
     let currentSectionIndex = $state(0);
 
     function onCurtainComplete() {
@@ -40,18 +64,12 @@
         appState = "sections";
     }
 
-    //     function onLoadingComplete() {
-    //     appState = "curtain";
-    // }
-
-    // function onCurtainComplete() {
-    //     appState = "sections";
-    //     if (musicRef) musicRef.playMusic();
-    // }
-
     function scrollToSection(index) {
-        const el = document.getElementById(`section-${sections[index]}`);
-        el?.scrollIntoView({ behavior: "smooth" });
+        const key = activeSections[index];
+        if (!key) return;
+        document
+            .getElementById(`section-${key}`)
+            ?.scrollIntoView({ behavior: "smooth" });
     }
 
     $effect(() => {
@@ -61,7 +79,7 @@
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-                        const idx = sections.indexOf(
+                        const idx = activeSections.indexOf(
                             entry.target.dataset.section,
                         );
                         if (idx !== -1) currentSectionIndex = idx;
@@ -78,27 +96,18 @@
     });
 </script>
 
-<Curtain onComplete={onCurtainComplete} />
+<Curtain hashtag={content?.hero?.hashtag || ""} onComplete={onCurtainComplete} />
 
 {#if appState === "loading"}
     <LoadingScreen
         guestName={guestData?.name}
-        logoUrl="/mk.png"
+        {logoUrl}
+        {coupleNames}
+        {dateText}
+        tips={meta?.loadingTips || []}
         onComplete={onLoadingComplete}
     />
 {/if}
-
-<!-- {#if appState === "loading"}
-    <LoadingScreen
-        guestName={guestData?.name}
-        logoUrl="/mk.png"
-        onComplete={onLoadingComplete}
-    />
-{/if}
-
-{#if appState === "curtain"}
-    <Curtain onComplete={onCurtainComplete} />
-{/if} -->
 
 {#if appState === "sections"}
     <!-- BACKGROUND TETAP (fixed), tidak ikut scroll -->
@@ -118,7 +127,7 @@
         in:fade={{ duration: 500 }}
     >
         <div class="progress-bars">
-            {#each sections as _, i}
+            {#each activeSections as _, i}
                 <button
                     class="progress-bar"
                     class:completed={i < currentSectionIndex}
@@ -131,14 +140,13 @@
             {/each}
         </div>
 
-        <MusicPlayer
-            bind:this={musicRef}
-            url={content?.hero?.music_url || "/music/background.mp3"}
-        />
+        {#if musicUrl}
+            <MusicPlayer bind:this={musicRef} url={musicUrl} />
+        {/if}
 
-        {#if guestData?.checkin_status === "arrived"}
+        {#if showPhotobooth}
             <a
-                href="/photobooth?guest={guestData.guest_code}"
+                href="{meta.photoboothUrl}?guest={guestData.guest_code}"
                 class="photobooth-banner"
             >
                 <svg
@@ -169,117 +177,139 @@
             </div>
         {/if}
 
-        <!-- WELCOME -->
-        <section
-            id="section-welcome"
-            data-section="welcome"
-            class="page-section"
-        >
-            <div class="welcome-hero">
-                <p class="subtitle">
-                    {content?.hero?.title || "THE WEDDING CELEBRATION"}
-                </p>
-                <div class="names-box">
-                    <!-- Mempelai Wanita -->
-                    <div class="person-block">
-                        <p class="full-name">
-                            {content?.mempelai?.wanita?.nama_lengkap ||
-                                "Maulia Nur Rahma"}
-                        </p>
-                        <h1 class="name-main">
-                            {content?.mempelai?.wanita?.nama_panggilan ||
-                                "Maul"}
-                        </h1>
-                        {#if content?.mempelai?.wanita?.ayah || content?.mempelai?.wanita?.ibu}
-                            <p class="parents-text">
-                                Putri dari Bapak {content?.mempelai?.wanita
-                                    ?.ayah || "-"}
-                                & Ibu {content?.mempelai?.wanita?.ibu || "-"}
-                            </p>
-                        {/if}
-                    </div>
+        {#if activeSections.includes("welcome")}
+            <!-- WELCOME -->
+            <section
+                id="section-welcome"
+                data-section="welcome"
+                class="page-section"
+            >
+                <div class="welcome-hero">
+                    {#if content?.hero?.title}
+                        <p class="subtitle">{content.hero.title}</p>
+                    {/if}
+                    <div class="names-box">
+                        <!-- Mempelai Wanita -->
+                        <div class="person-block">
+                            {#if content?.mempelai?.wanita?.nama_lengkap}
+                                <p class="full-name">
+                                    {content.mempelai.wanita.nama_lengkap}
+                                </p>
+                            {/if}
+                            <h1 class="name-main">
+                                {content?.mempelai?.wanita?.nama_panggilan || ""}
+                            </h1>
+                            {#if content?.mempelai?.wanita?.ayah || content?.mempelai?.wanita?.ibu}
+                                <p class="parents-text">
+                                    Putri dari Bapak {content?.mempelai?.wanita
+                                        ?.ayah || "-"}
+                                    & Ibu {content?.mempelai?.wanita?.ibu || "-"}
+                                </p>
+                            {/if}
+                        </div>
 
-                    <div class="ampersand">
-                        <div class="line"></div>
-                        <span>&</span>
-                        <div class="line"></div>
-                    </div>
+                        <div class="ampersand">
+                            <div class="line"></div>
+                            <span>&</span>
+                            <div class="line"></div>
+                        </div>
 
-                    <!-- Mempelai Pria -->
-                    <div class="person-block">
-                        <p class="full-name">
-                            {content?.mempelai?.pria?.nama_lengkap ||
-                                "M Kahfi Kresnotutuko"}
+                        <!-- Mempelai Pria -->
+                        <div class="person-block">
+                            {#if content?.mempelai?.pria?.nama_lengkap}
+                                <p class="full-name">
+                                    {content.mempelai.pria.nama_lengkap}
+                                </p>
+                            {/if}
+                            <h1 class="name-main">
+                                {content?.mempelai?.pria?.nama_panggilan || ""}
+                            </h1>
+                            {#if content?.mempelai?.pria?.ayah || content?.mempelai?.pria?.ibu}
+                                <p class="parents-text">
+                                    Putra dari Bapak {content?.mempelai?.pria
+                                        ?.ayah || "-"}
+                                    & Ibu {content?.mempelai?.pria?.ibu || "-"}
+                                </p>
+                            {/if}
+                        </div>
+                    </div>
+                    <div class="date-loc">
+                        <p class="date">
+                            {content?.hero?.date_formatted || dateText}
                         </p>
-                        <h1 class="name-main">
-                            {content?.mempelai?.pria?.nama_panggilan || "Kahfi"}
-                        </h1>
-                        {#if content?.mempelai?.pria?.ayah || content?.mempelai?.pria?.ibu}
-                            <p class="parents-text">
-                                Putra dari Bapak {content?.mempelai?.pria
-                                    ?.ayah || "-"}
-                                & Ibu {content?.mempelai?.pria?.ibu || "-"}
-                            </p>
-                        {/if}
+                        <div class="ornament">
+                            <div class="diamond"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="date-loc">
-                    <p class="date">
-                        {content?.hero?.date_formatted || "SABTU, 24 MEI 2026"}
-                    </p>
-                    <div class="ornament">
-                        <div class="diamond"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </section>
+        {/if}
 
-        <!-- STORY -->
-        <!-- <section id="section-story" data-section="story" class="page-section">
-            <StorySection stories={content?.stories || []} />
-        </section> -->
+        {#if activeSections.includes("verses")}
+            <section
+                id="section-verses"
+                data-section="verses"
+                class="page-section"
+            >
+                <GratitudeSection
+                    verses={content?.verses || []}
+                    message={content?.gratitude_message || ""}
+                />
+            </section>
+        {/if}
 
-        <section id="section-story" data-section="story" class="page-section">
-            <GratitudeSection
-                verses={content?.verses || []}
-                message={content?.gratitude_message || ""}
-            />
-        </section>
+        {#if activeSections.includes("event")}
+            <!-- EVENT -->
+            <section id="section-event" data-section="event" class="page-section">
+                <EventSection events={content?.acara || []} />
+            </section>
+        {/if}
 
-        <!-- EVENT -->
-        <section id="section-event" data-section="event" class="page-section">
-            <EventSection events={content?.acara || []} />
-        </section>
+        {#if activeSections.includes("info")}
+            <!-- INFO / MOODBOARD -->
+            <section id="section-info" data-section="info" class="page-section">
+                <InfoSection
+                    colors={content?.moodboard?.colors || []}
+                    announcements={content?.moodboard?.announcements || []}
+                />
+            </section>
+        {/if}
 
-        <!-- INFO / MOODBOARD -->
-        <section id="section-info" data-section="info" class="page-section">
-            <InfoSection
-                colors={content?.moodboard?.colors || []}
-                announcements={content?.moodboard?.announcements || []}
-            />
-        </section>
+        {#if activeSections.includes("gallery")}
+            <!-- GALLERY -->
+            <section
+                id="section-gallery"
+                data-section="gallery"
+                class="page-section"
+            >
+                <GallerySection galleries={galleries || []} />
+            </section>
+        {/if}
 
-        <!-- GALLERY -->
-        <section
-            id="section-gallery"
-            data-section="gallery"
-            class="page-section"
-        >
-            <GallerySection galleries={galleries || []} />
-        </section>
+        {#if activeSections.includes("rsvp")}
+            <!-- RSVP -->
+            <section id="section-rsvp" data-section="rsvp" class="page-section">
+                <RSVPSection {guestData} invitationId={invitation?.id} />
+            </section>
+        {/if}
 
-        <!-- RSVP -->
-        <section id="section-rsvp" data-section="rsvp" class="page-section">
-            <RSVPSection {guestData} invitationId={invitation?.id} />
-        </section>
-
-        <!-- THANKS -->
-        <section id="section-thanks" data-section="thanks" class="page-section">
-            <ThanksSection {guestData} names={content?.mempelai} />
-        </section>
+        {#if activeSections.includes("thanks")}
+            <!-- THANKS -->
+            <section
+                id="section-thanks"
+                data-section="thanks"
+                class="page-section"
+            >
+                <ThanksSection
+                    {guestData}
+                    names={content?.mempelai}
+                    thanks={meta?.thanks}
+                    {coupleNames}
+                />
+            </section>
+        {/if}
     </div>
 {/if}
-
 <style>
     @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400&display=swap");
 

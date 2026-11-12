@@ -64,7 +64,7 @@ Route::get('/photobooth', [PhotoboothController::class, 'legacyRedirect'])
 
 // Legacy capture endpoint still used by the current photobooth frontend.
 Route::post('/photobooth/capture', [PhotoboothController::class, 'store'])
-    ->middleware('tenant.guestcode')
+    ->middleware(['tenant.guestcode', 'feature:photobooth'])
     ->name('legacy.photobooth.capture');
 
 // Decision C2: `/v/{slug}` was the original public URL. It becomes a permanent
@@ -106,7 +106,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
      */
     Route::middleware(['tenant.admin', 'tenant.selected'])->group(function () {
         // Staff and admin: check-in scanner only.
-        Route::middleware('role:admin,staff')->group(function () {
+        Route::middleware(['role:admin,staff', 'feature:guestbook'])->group(function () {
             Route::get('/scanner', [ScannerController::class, 'index'])->name('admin.scanner.index');
             Route::post('/scanner/checkin', [ScannerController::class, 'checkin'])->name('admin.scanner.checkin');
             Route::get('/scanner/stats', [ScannerController::class, 'todayStats'])->name('admin.scanner.stats');
@@ -118,25 +118,33 @@ Route::prefix('admin')->middleware('auth')->group(function () {
             Route::get('/guests', [GuestController::class, 'index'])->name('admin.guests.index');
             Route::post('/guests', [GuestController::class, 'store'])->name('admin.guests.store');
             Route::post('/guests/import', [GuestController::class, 'import'])->name('admin.guests.import');
-            Route::get('/guests/export', [GuestController::class, 'export'])->name('admin.guests.export');
-            Route::get('/guests/print-labels', [GuestController::class, 'printLabels'])->name('admin.guests.print');
+            Route::get('/guests/export', [GuestController::class, 'export'])
+                ->middleware('feature:guestbook')->name('admin.guests.export');
+            Route::get('/guests/print-labels', [GuestController::class, 'printLabels'])
+                ->middleware('feature:qr_cards')->name('admin.guests.print');
             Route::delete('/guests/reset', [GuestController::class, 'resetGuests'])->name('admin.guests.reset');
             Route::put('/guests/{id}', [GuestController::class, 'update'])->name('admin.guests.update');
             Route::delete('/guests/{id}', [GuestController::class, 'destroy'])->name('admin.guests.destroy');
 
             // Gallery
-            Route::get('/gallery', [GalleryController::class, 'index'])->name('admin.gallery.index');
-            Route::post('/gallery', [GalleryController::class, 'store'])->name('admin.gallery.store');
-            Route::delete('/gallery/{id}', [GalleryController::class, 'destroy'])->name('admin.gallery.destroy');
+            Route::middleware('feature:gallery')->group(function () {
+                Route::get('/gallery', [GalleryController::class, 'index'])->name('admin.gallery.index');
+                Route::post('/gallery', [GalleryController::class, 'store'])->name('admin.gallery.store');
+                Route::delete('/gallery/{id}', [GalleryController::class, 'destroy'])->name('admin.gallery.destroy');
+            });
 
             // Invitation content editor
             Route::get('/invitation', [InvitationContentController::class, 'edit'])->name('admin.invitation.edit');
             Route::post('/invitation', [InvitationContentController::class, 'update'])->name('admin.invitation.update');
 
             // Photobooth (admin grid + printable memory book)
-            Route::get('/photobooth', [PhotoboothController::class, 'adminIndex'])->name('admin.photobooth.index');
-            Route::get('/photobooth/print', [PhotoboothController::class, 'printView'])->name('admin.photobooth.print');
-            Route::delete('/photobooth/{id}', [PhotoboothController::class, 'destroy'])->name('admin.photobooth.destroy');
+            Route::middleware('feature:photobooth')->group(function () {
+                Route::get('/photobooth', [PhotoboothController::class, 'adminIndex'])->name('admin.photobooth.index');
+                Route::delete('/photobooth/{id}', [PhotoboothController::class, 'destroy'])->name('admin.photobooth.destroy');
+            });
+
+            Route::get('/photobooth/print', [PhotoboothController::class, 'printView'])
+                ->middleware('feature:memory_book')->name('admin.photobooth.print');
         });
     });
 });
@@ -149,12 +157,12 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
 Route::get('/{slug}/photobooth', [PhotoboothController::class, 'index'])
     ->where('slug', SlugRules::PATTERN)
-    ->middleware('tenant.public')
+    ->middleware(['tenant.public', 'feature:photobooth'])
     ->name('invitation.photobooth');
 
 Route::post('/{slug}/photobooth/capture', [PhotoboothController::class, 'store'])
     ->where('slug', SlugRules::PATTERN)
-    ->middleware('tenant.public')
+    ->middleware(['tenant.public', 'feature:photobooth'])
     ->name('invitation.photobooth.capture');
 
 Route::get('/{slug}', [WeddingController::class, 'index'])

@@ -1,5 +1,6 @@
 <script>
-    let { guests } = $props();
+    // P2-T2: the event title comes from the presenter; never a fixed couple.
+    let { guests = [], eventTitle = "", isSingle = false } = $props();
     const printNow = () => window.print();
 </script>
 
@@ -90,7 +91,9 @@
                 <div class="info">
                     <p class="guest-name">{guest.name}</p>
                     <div class="divider"></div>
-                    <p class="event-label">The Wedding of Maulia & Kahfi</p>
+                    {#if eventTitle}
+                        <p class="event-label">{eventTitle}</p>
+                    {/if}
                 </div>
             </div>
         {/each}

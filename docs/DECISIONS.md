@@ -208,8 +208,66 @@ MySQL, after asserting there are no NULL rows.
 ## P1-J - Local commands need `--env=local`
 
 **Decided by:** agent, discovered during P1-T1.
-The tracked `.env` is a production copy pointing at `kald5548_invitation`,
-which does not exist locally, so `php artisan migrate` fails. A git-ignored
-`.env.local` (copy of the existing `.env copy`) enables `--env=local`, which
-hits the local `invitation` database. `.env` itself was never modified.
+The tracked `.env` was a production copy pointing at `kald5548_invitation`,
+which does not exist locally, so `php artisan migrate` failed. A git-ignored
+`.env.local` (copy of the existing `.env copy`) enabled `--env=local`.
+**Superseded:** the owner corrected `.env` on 2026-11-12 (`APP_ENV=local`,
+`DB_DATABASE=invitation`), so plain `php artisan migrate` works. `.env.local`
+is no longer required and can be deleted.
+
+---
+
+# Phase 2 decisions
+
+## P2-A - Verse and announcement defaults stay inside their sections
+
+**Decided by:** agent, reconciling P2-T2 and P2-T3.
+P2-T2 says missing optional data must hide the block and never show another
+client's default; P2-T3 says verse/announcement defaults appear when the
+section is enabled and the content is empty. Resolution: the defaults stay
+inside `GratitudeSection`/`InfoSection`, but the **section itself** is removed
+server-side when the client disables it (or when `info_section` is not in the
+package). So a non-Muslim client hides `verses` and never sees the default
+verse; an empty info section still shows the neutral check-in guidance.
+
+## P2-B - `event_date` column vs `acara[0].tanggal`
+
+**Decided by:** agent, per AGENTS.md 5.7.
+`InvitationPresenter::dateText()` reads the first `acara.tanggal` first and
+falls back to the `event_date` column. The column is the backfilled copy, so
+content wins when the operator edits dates in the content editor.
+
+## P2-C - Themes never query tenant data through unscoped relations
+
+**Decided by:** agent, found by a failing test.
+`InvitationPresenter::ogImage()` needs the invitation's own gallery. Because
+`TenantScope` fails closed, calling `$invitation->galleries()` outside a
+request returned nothing. The presenter now wraps that one query in
+`TenantContext::runAs($invitation->id, ...)`, which is explicit and restores
+the previous context. No `withoutScope` was used.
+
+## P2-D - `minimal-light` is a contract proof, not a finished design
+
+**Decided by:** agent, per P2-T7.
+It renders the same props in a single light scroll page. Visual polish is
+`TODO(owner)`. It is seeded with `svelte_path = Invitation/Show` because the
+legacy column is NOT NULL and no longer routes anything.
+
+## P2-E - Platform branding comes from settings, with a text fallback
+
+**Decided by:** agent, ahead of P3-T5.
+`HandleInertiaRequests` shares `platform{name,logo_url}` read from the
+`settings` table (`App\Support\Settings`, guarded against a missing table).
+Until P3-T5 fills it in, the admin sidebar renders an initial letter instead
+of the hardcoded `logo2.png`, and OG images fall back to no image rather than
+another client's logo.
+
+## P2-F - Upload limits raised and documented
+
+**Decided by:** agent.
+Gallery images 2 MB -> 5 MB, plus explicit limits for hero (8 MB), music
+(20 MB), mempelai photos (4 MB), logo/QRIS (2 MB), with Indonesian messages.
+`docs/DEPLOY.md` documents the required `php.ini` values so PHP never rejects
+a file the app would accept.
+
 

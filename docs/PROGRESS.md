@@ -3,21 +3,22 @@
 Handoff document. Read this first in a new session, then `AGENTS.md` §0-6 and
 the current phase.
 
-Last updated: **2026-11-12** (Phase 1 complete, awaiting the gate).
-Branch: `feature/multi-tenant` — **changes are uncommitted on purpose: the
-owner asked to review before any commit.**
+Last updated: **2026-11-12** (Phase 2 complete, awaiting the gate).
+Branch: `feature/multi-tenant`.
+
+Git state: **Phase 0 + Phase 1 committed** (`b379f14` and earlier). **Phase 2 is
+uncommitted** — it is waiting for the owner's review/approval.
 
 ---
 
-## How to run things locally
+## Run locally
 
 ```powershell
 $env:PATH = 'C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64;C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin;C:\laragon\bin\nodejs\node-v22;C:\laragon\bin\composer;' + $env:PATH
 ```
 
-- Any **DB‑touching** artisan command needs `--env=local` (the tracked `.env`
-  is a production copy). `npm` must be run as `cmd /c "npm run build"`.
-- Tests need no env flag: `phpunit.xml` forces sqlite `:memory:`.
+`.env` now targets the local `invitation` DB, so `php artisan migrate` works
+with no extra flag. `npm` must be run as `cmd /c "npm run build"`.
 
 ---
 
@@ -31,54 +32,68 @@ $env:PATH = 'C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64;C:\laragon\bin\mysql\m
 | P0-T4 Audit | DONE | `2e51334` |
 | P0-T5 Docs | DONE | `2e51334` |
 
-Backup verified by restoring it into a scratch DB (158/6/11/1/3/1/15).
+---
+
+## Phase 1 - Multi-tenant core (approved)
+
+| Task | Status | Notes |
+|---|---|---|
+| P1-T1..P1-T10 | DONE (commit `b379f14`) | 25 migrations, 10 factories/tests, 44 routes. |
+| Phase 1 gate | **APPROVED** by owner 2026-11-12 | Committed as one commit. |
+
+Related fix after approval: the owner corrected `.env` to the local DB, so the
+`--env=local` workaround is gone.
 
 ---
 
-## Phase 1 - Multi-tenant core
+## Phase 2 - Dynamic content, sections, themes
 
-**All tasks implemented. 37 tests / 146 assertions green. `npm run build` green.
-Nothing committed yet.**
+**All tasks implemented. 67 tests / 221 assertions green. `npm run build` green.
+2 migrations applied locally (22 -> 27 pending? see below).**
 
 | Task | Status | What was built |
 |---|---|---|
-| P1-T1 Schema | DONE | 7 additive migrations: `packages`, `settings`, invitation lifecycle columns, additive `themes` columns, `users.role`+`invitation_id`, `galleries.invitation_id`, `photobooth_photos.invitation_id`. `guests` already had its FK. SQL reviewed with `--pretend` (`docs/migrate-pretend-p1t1.txt`). |
-| P1-T2 Backfill | DONE | `2026_11_12_110000_backfill_multi_tenant_data.php`: chunked raw `DB::table()` updates, derived photos via `guest_id`, users→`admin`, invitation→`active` + `event_date` 2026-09-06, seeded `heritage-gold` + Basic/Plus/Premium (`price = null`). Verified 0 NULL tenants, totals unchanged. |
-| P1-T3 Tenant core | DONE | `App\Support\TenantContext` (singleton), `App\Models\Scopes\TenantScope` (fails closed with `1 = 0`), `App\Models\Concerns\BelongsToInvitation` (auto-fills and throws), applied to Guest/Gallery/PhotoboothPhoto. `App\Exceptions\TenantContextMissingException`. |
-| P1-T4 Middleware/roles | DONE | `tenant.public`, `tenant.guestcode`, `tenant.admin`, `tenant.selected`, `role:admin,staff` aliases; `InvitationAccess` lifecycle helper; `User::isAdmin/isStaff/isClient`; `is_active` guard. |
-| P1-T5 Routing | DONE | 44 routes; `/{slug}` declared last and constrained; reserved slugs in `App\Support\SlugRules`; legacy `/?guest=`, `/photobooth?guest=` redirects; `/v/{slug}` 301; admin split into no-tenant and tenant groups; staff limited to scanner. |
-| P1-T6 Controllers | DONE | K1 (`Invitation::first` gone, editor never auto-creates, null-safe merge), K2 (`resetGuests` with slug confirmation), K3 (import matches `(invitation_id, name, city)`), K4 (gallery/photobooth/exports scoped). Uploads under `invitations/{id}/…`. Deleted `GuestController copy.php`. |
-| P1-T7 Shared props | DONE | `auth.user{name,role}`, `tenant{id,title,slug,features}`, `invitations` (admin), `flash`; `AdminLayout` event switcher + role/feature-filtered nav + flash→toast. |
-| P1-T8 Invitations/Users admin | DONE | `/admin/invitations` list + create/edit/duplicate/archive/switch; `/admin/users` create/edit/reset password/deactivate. New pages `InvitationIndex.svelte`, `InvitationForm.svelte`, `UserIndex.svelte`, `ResetGuestsModal.svelte`, `Pages/Empty.svelte`. |
-| P1-T9 Isolation tests | DONE | `tests/Feature/TenantIsolationTest.php` rows T1-T14, `TenantScopeTest`, `TenantContextTest`, plus 5 factories. |
-| P1-T10 Tighten schema | DONE | `2026_11_12_130000_make_tenant_columns_not_null.php`, pretend reviewed, NULL pre-check inside, skipped on SQLite. |
+| P2-T1 Feature registry | DONE | `config/features.php` (8 keys + labels). `Invitation::featureKeys/featureFlags/hasFeature/limit`. Middleware `feature:{key}` (404 public, 403 for logged-in/JSON). Gated: photobooth page+capture, scanner+export (`guestbook`), print labels (`qr_cards`), admin photobooth grid (`photobooth`), memory book print (`memory_book`), gallery admin (`gallery`). |
+| P2-T2 De-hardcode | DONE | `App\Support\InvitationPresenter` is now the only source of names/dates/logo/thanks/tips. `LoadingScreen`, `Curtain`, `ThankSection`, `Photobooth`, `PhotoboothPrint`, `GuestPrintLabels`, `GuestIndex`, `AdminLayout`, `app.blade.php` no longer hardcode a couple, `/mk.png`, `logo2.png`, `#KALItech`, bank numbers or the QRIS file. Music fallback removed. New content fields: `hero.hashtag`, `logo_url`, `loading_tips[]`, `thanks{bank_accounts[],qris_image_url}`, `invite_message_template`. Editor UI added. |
+| P2-T3 Sections | DONE | `App\Support\SectionRegistry` + `Invitation::resolvedSections()` (welcome forced first, unknown/duplicate dropped, feature-disabled sections removed). Editor with checkboxes + up/down reorder. Defaults for new invitations. |
+| P2-T4 Photobooth/print dynamic | DONE | Photobooth receives `meta` and draws `coupleNames`/`dateText` on both frames; share title/text from presenter. `PhotoboothPrint` cover + page headers from presenter. |
+| P2-T5 SEO + DTOs | DONE | `InvitationPresenter::seo()` per invitation, absolute URLs; `og:image` = hero -> gallery -> platform setting -> none. Public props are whitelisted arrays (`invitation{id,title,slug}`, `guestData` 7 whitelisted keys, `galleries[{id,path}]`) - K6 fixed. |
+| P2-T6 Theme system | DONE | `resources/js/Themes/heritage-gold/{Index.svelte,sections/*}` (moved, not rewritten). Loader `Pages/Invitation/Show.svelte` lazy-imports by key. `app.js` switched to lazy `import.meta.glob` and the debug `console.log`s removed. Dead `* copy.svelte` files deleted. Build emits per-page chunks (51 assets). |
+| P2-T7 Second theme | DONE | `Themes/minimal-light/Index.svelte` (single light scroll page, same contract). Seeded via migration, selectable in the invitation form. |
+| P2-T8 Invite template | DONE | `content.invite_message_template` with `{name} {link} {quota} {couple}`, default template in the presenter, editor field + live preview, `GuestIndex` renders it. |
+| P2-T9 Upload hardening | DONE | Explicit mime/size rules + Indonesian messages for hero, music, mempelai photos, logo, QRIS, gallery. Per-tenant directories kept. `docs/DEPLOY.md` documents `php.ini` values. |
 
-### Extra migration not in the plan
+### New tests
 
-`2026_11_12_120000_add_is_active_to_users_table.php` — needed for P1-T8
-"deactivate". See `DECISIONS.md` P1-D.
+- `tests/Feature/FeatureGatingTest.php` (9 tests) - matrix T16 + each gated route.
+- `tests/Feature/SectionsTest.php` (9 tests) - defaults, order, filtering, unknown keys.
+- `tests/Feature/PresenterTest.php` (12 tests) - names order, dates, OG fallback, invite template, thanks, whitelisted payload (T20).
+
+### Final cleanup
+
+- Deleted the dead `Pages/Welcome.svelte` (no route/import, contained client names).
+- `MusicPlayer.svelte` no longer defaults to `/music/background.mp3` (K12):
+  it renders nothing to play when no music is uploaded.
+- Remaining `Maul/Kahfi/mk.png/logo2/saweria/KALItech/06 . 09/background.mp3`
+  matches under `resources/` and `app/`: **0** (was 47 at audit time).
 
 ### Deliberately NOT done (later phases)
 
-- Expired page is HTTP 410, not a styled page (P3-T2).
-- `config/features.php`, `feature:{key}` middleware and real limit enforcement
-  (P2-T1/P3-T3). Phase 1 only ships `Invitation::featureFlags()/hasFeature()/limit()`
-  and uses them for the shared `tenant.features` prop.
-- Public Inertia props still send raw `Invitation`/`Guest` models (K6, P2-T5).
-- Hardcoded names/dates/logo still present (K9, P2-T2).
-- `app.js` still eager-loads pages (K10, P2-T6).
-- `/admin` has no dashboard route yet (P3-T8), so it 404s. Login sends the
-  owner to `/admin/guests` and staff to `/admin/scanner`.
-- `resources/js/Pages/* copy.svelte` leftovers were not deleted.
+- Photobooth base64 hardening and rate limits (P3-T4).
+- Packages GUI, settings GUI, landing page, expired page, dashboard (Phase 3).
+- `minimal-light` visual polish (`TODO(owner)`).
+- Verses/announcement *default copy* now only appears when the section is
+  enabled (see `DECISIONS.md` P2-A); i18n packs are still backlog.
 
 ---
 
 ## Open questions for the owner
 
-1. **Commit strategy** — the whole Phase 1 diff is uncommitted. Review it, then
-   either approve the one-commit-per-task plan or ask for a single commit.
-2. **Owner decision #2** (AGENTS §11) — does `maul-kahfi` stay `active` as a
-   portfolio piece? Right now it is `active` and is the `/` showcase.
-3. **Theme mapping** — the existing wedding still points at theme `aurum-noctis`
-   (`svelte_path = Wedding`); a separate `heritage-gold` row was seeded. P2-T6
-   should decide whether the live wedding is repointed to `heritage-gold`.
+1. **Commit strategy for Phase 2** - the diff is uncommitted. One commit, or
+   one-per-task?
+2. **Theme of the live wedding** - `maul-kahfi` still points at theme
+   `aurum-noctis` (`svelte_path = Wedding`). Both `heritage-gold` and
+   `minimal-light` exist now. Repoint it in P3 or leave as is?
+3. **Owner decision #2** - does `maul-kahfi` stay public as a portfolio piece?
+4. **Branding** - `settings` is empty, so the admin sidebar shows an initial
+   letter and OG images have no platform logo until P3-T5.

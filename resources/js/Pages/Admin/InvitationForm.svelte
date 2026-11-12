@@ -2,10 +2,19 @@
     import { router, useForm } from "@inertiajs/svelte";
     import AdminLayout from "../../Components/Admin/AdminLayout.svelte";
 
-    let { invitation = null, themes = [], packages = [], reservedSlugs = [] } =
-        $props();
+    let {
+        invitation = null,
+        themes = [],
+        packages = [],
+        reservedSlugs = [],
+        sectionOptions = [],
+    } = $props();
 
     const isEdit = invitation !== null;
+
+    const defaultSections = sectionOptions.length
+        ? sectionOptions.map((section) => section.key)
+        : ["welcome", "verses", "event", "info", "gallery", "rsvp", "thanks"];
 
     const form = useForm({
         title: invitation?.title ?? "",
@@ -25,7 +34,35 @@
         paid_at: invitation?.paid_at ?? "",
         internal_notes: invitation?.internal_notes ?? "",
         is_demo: invitation?.is_demo ?? false,
+        sections: invitation?.sections?.length
+            ? [...invitation.sections]
+            : [...defaultSections],
     });
+
+    function toggleSection(key) {
+        if (form.sections.includes(key)) {
+            // `welcome` is mandatory (server also forces it).
+            if (key === "welcome") return;
+            form.sections = form.sections.filter((item) => item !== key);
+        } else {
+            form.sections = [...form.sections, key];
+        }
+    }
+
+    function moveSection(index, direction) {
+        const target = index + direction;
+        if (target < 0 || target >= form.sections.length) return;
+        // `welcome` stays first.
+        if (form.sections[index] === "welcome" || form.sections[target] === "welcome") return;
+
+        const next = [...form.sections];
+        [next[index], next[target]] = [next[target], next[index]];
+        form.sections = next;
+    }
+
+    function sectionLabel(key) {
+        return sectionOptions.find((section) => section.key === key)?.label ?? key;
+    }
 
     const slugPattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -82,7 +119,7 @@
                         id="f-slug"
                         class="input"
                         bind:value={form.slug}
-                        placeholder="maul-kahfi"
+                        placeholder="nama-pasangan"
                     />
                     {#if slugError}
                         <p class="error">{slugError}</p>
@@ -187,6 +224,62 @@
                     <input id="f-paidat" class="input" type="datetime-local" bind:value={form.paid_at} />
                 </div>
             </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Bagian Undangan</h2>
+            <p class="hint">
+                Atur bagian yang tampil dan urutannya. Bagian yang fiturnya
+                tidak termasuk paket otomatis disembunyikan.
+            </p>
+
+            <ul class="sections-list">
+                {#each form.sections as key, i (key)}
+                    <li class="section-row">
+                        <label class="section-check">
+                            <input
+                                type="checkbox"
+                                checked
+                                disabled={key === "welcome"}
+                                onchange={() => toggleSection(key)}
+                            />
+                            <span>{sectionLabel(key)}</span>
+                            {#if key === "welcome"}
+                                <span class="badge">wajib</span>
+                            {/if}
+                        </label>
+                        <div class="section-actions">
+                            <button
+                                type="button"
+                                class="mini"
+                                disabled={i === 0}
+                                onclick={() => moveSection(i, -1)}
+                                aria-label="Naikkan"
+                            >↑</button>
+                            <button
+                                type="button"
+                                class="mini"
+                                disabled={i === form.sections.length - 1}
+                                onclick={() => moveSection(i, 1)}
+                                aria-label="Turunkan"
+                            >↓</button>
+                        </div>
+                    </li>
+                {/each}
+            </ul>
+
+            {#if sectionOptions.some((section) => !form.sections.includes(section.key))}
+                <p class="hint" style="margin-top: 12px;">Tambah bagian:</p>
+                <div class="chips">
+                    {#each sectionOptions.filter((section) => !form.sections.includes(section.key)) as section (section.key)}
+                        <button
+                            type="button"
+                            class="chip"
+                            onclick={() => toggleSection(section.key)}
+                        >+ {section.label}</button>
+                    {/each}
+                </div>
+            {/if}
         </section>
 
         <section class="section">
@@ -303,6 +396,90 @@
         font-size: 12px;
         color: var(--text-muted);
         margin: 0;
+    }
+
+    .sections-list {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .section-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: var(--bg);
+    }
+
+    .section-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13.5px;
+        color: var(--text-primary);
+    }
+
+    .badge {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 1px 7px;
+    }
+
+    .section-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .mini {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+    }
+
+    .mini:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .chip {
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px dashed var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 12.5px;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--primary);
+        color: var(--primary);
     }
 
     .error {

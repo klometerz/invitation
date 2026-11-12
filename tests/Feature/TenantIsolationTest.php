@@ -125,7 +125,7 @@ class TenantIsolationTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->component('Wedding')
+            ->component('Invitation/Show')
             ->where('guestData', null)
         );
     }

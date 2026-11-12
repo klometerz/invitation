@@ -1,32 +1,38 @@
 <script>
     import { onMount } from "svelte";
 
-    let { url = "/music/background.mp3", autoPlay = false } = $props();
+    // K12: there is no bundled fallback track. Themes only render this
+    // component when the invitation actually uploaded music.
+    let { url = null, autoPlay = false } = $props();
 
     let audio = $state(null);
     let isPlaying = $state(false);
 
     // Fungsi Global untuk Play (bisa dipanggil dari Wedding.svelte)
     export const playMusic = () => {
-        if (audio && !isPlaying) {
-            audio
-                .play()
-                .then(() => {
-                    isPlaying = true;
-                })
-                .catch((err) =>
-                    console.log("Autoplay blocked by browser", err),
-                );
-        }
+        if (!url || !audio || isPlaying) return;
+
+        audio
+            .play()
+            .then(() => {
+                isPlaying = true;
+            })
+            .catch(() => {
+                // Autoplay blocked by browser: the button still works.
+            });
     };
 
     function toggleMusic(e) {
         e.stopPropagation();
+        if (!url || !audio) return;
+
         if (isPlaying) {
             audio.pause();
             isPlaying = false;
         } else {
-            audio.play();
+            audio.play().catch(() => {
+                isPlaying = false;
+            });
             isPlaying = true;
         }
     }

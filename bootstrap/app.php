@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\EnsureTenantSelected;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ResolveAdminTenant;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.admin' => ResolveAdminTenant::class,
             'tenant.selected' => EnsureTenantSelected::class,
             'role' => EnsureUserHasRole::class,
+            'feature' => EnsureFeatureEnabled::class,
         ]);
 
     })

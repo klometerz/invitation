@@ -132,7 +132,7 @@
                         id="category"
                         type="text"
                         bind:value={form.category}
-                        placeholder="Tamu Kahfi, Tamu Maul, Orang Tua, dll"
+                        placeholder="Tamu Pria, Tamu Wanita, Keluarga, dll"
                         list="category-suggestions"
                     />
                     <datalist id="category-suggestions">

@@ -21,7 +21,13 @@ class GalleryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'images.*' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048', // Max 2MB per foto
+            'images' => ['required', 'array'],
+            'images.*' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+        ], [
+            'images.required' => 'Pilih minimal satu foto.',
+            'images.*.image' => 'Semua berkas harus berupa gambar.',
+            'images.*.mimes' => 'Format foto harus JPG, PNG, atau WEBP.',
+            'images.*.max' => 'Setiap foto maksimal 5 MB.',
         ]);
 
         if ($request->hasFile('images')) {

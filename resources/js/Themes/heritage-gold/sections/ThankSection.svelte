@@ -1,21 +1,28 @@
 <script>
-    let { guestData = null, names = null } = $props();
+    // P2-T2: bank accounts and QRIS come from the invitation content
+    // (`content.thanks`), never from hardcoded values. When absent, the gift
+    // block is hidden entirely.
+    let {
+        guestData = null,
+        names = null,
+        thanks = {},
+        coupleNames = "",
+    } = $props();
 
     let copiedIndex = $state(null);
 
-    // Data rekening — tinggal edit di sini
-    const bankAccounts = [
-        {
-            bank: "BANK MANDIRI",
-            number: "1340030819584",
-            holder: "M KAHFI KRESNOTUTUKO",
-        },
-        {
-            bank: "BANK BCA",
-            number: "3610584399",
-            holder: "MAULIA NUR RAHMA",
-        },
-    ];
+    const bankAccounts = $derived(
+        Array.isArray(thanks?.bank_accounts) ? thanks.bank_accounts : [],
+    );
+    const qrisImage = $derived(thanks?.qris_image_url || null);
+    const hasGift = $derived(bankAccounts.length > 0 || Boolean(qrisImage));
+
+    const signatureNames = $derived(
+        coupleNames ||
+            [names?.wanita?.nama_panggilan, names?.pria?.nama_panggilan]
+                .filter(Boolean)
+                .join(" & "),
+    );
 
     function copyToClipboard(text, index) {
         if (navigator.clipboard && window.isSecureContext) {
@@ -72,56 +79,63 @@
         </p>
 
         <p class="final-wish">Sampai jumpa di hari bahagia kami!</p>
-        <p class="signature">
-            {names?.wanita?.nama_panggilan || "Maul"} & {names?.pria?.nama_panggilan || "Kahfi"}
-        </p>
+        {#if signatureNames}
+            <p class="signature">{signatureNames}</p>
+        {/if}
     </div>
 
-    <!-- Gift Section -->
-    <div class="glass-card">
-        <p class="gift-label">WEDDING GIFT</p>
-        <p class="gift-desc">
-            Bagi keluarga dan kerabat yang ingin memberikan tanda kasih,
-            dapat melalui saluran di bawah ini:
-        </p>
+    {#if hasGift}
+        <!-- Gift Section -->
+        <div class="glass-card">
+            <p class="gift-label">WEDDING GIFT</p>
+            <p class="gift-desc">
+                Bagi keluarga dan kerabat yang ingin memberikan tanda kasih,
+                dapat melalui saluran di bawah ini:
+            </p>
 
-        <div class="gift-grid">
-            {#each bankAccounts as account, i}
-                <div class="gift-item">
-                    <p class="bank-label">{account.bank}</p>
-                    <p class="account-number">{account.number}</p>
-                    <p class="account-name">A/N {account.holder}</p>
-                    <button
-                        type="button"
-                        class="copy-btn"
-                        class:copied={copiedIndex === i}
-                        onclick={(e) => {
-                            e.preventDefault();
-                            copyToClipboard(account.number, i);
-                        }}
-                    >
-                        {copiedIndex === i ? "BERHASIL DISALIN ✓" : "SALIN NOMOR REKENING"}
-                    </button>
-                </div>
+            <div class="gift-grid">
+                {#each bankAccounts as account, i}
+                    <div class="gift-item">
+                        <p class="bank-label">{account.bank}</p>
+                        <p class="account-number">{account.number}</p>
+                        {#if account.holder}
+                            <p class="account-name">A/N {account.holder}</p>
+                        {/if}
+                        <button
+                            type="button"
+                            class="copy-btn"
+                            class:copied={copiedIndex === i}
+                            onclick={(e) => {
+                                e.preventDefault();
+                                copyToClipboard(account.number, i);
+                            }}
+                        >
+                            {copiedIndex === i
+                                ? "BERHASIL DISALIN ✓"
+                                : "SALIN NOMOR REKENING"}
+                        </button>
+                    </div>
 
-                {#if i < bankAccounts.length - 1}
-                    <div class="divider-gold"></div>
+                    {#if i < bankAccounts.length - 1}
+                        <div class="divider-gold"></div>
+                    {/if}
+                {/each}
+
+                {#if qrisImage}
+                    {#if bankAccounts.length > 0}
+                        <div class="divider-gold"></div>
+                    {/if}
+
+                    <div class="gift-item">
+                        <p class="bank-label">QRIS</p>
+                        <div class="qr-frame">
+                            <img src={qrisImage} alt="QRIS" />
+                        </div>
+                    </div>
                 {/if}
-            {/each}
-
-            <div class="divider-gold"></div>
-
-            <div class="gift-item">
-                <p class="bank-label">QRIS / SAWERIA</p>
-                <div class="qr-frame">
-                    <img src="/qr-code.png" alt="QR Code" />
-                </div>
-                <p class="account-name">
-                    {names?.wanita?.nama_panggilan || "Maul"} & {names?.pria?.nama_panggilan || "Kahfi"}
-                </p>
             </div>
         </div>
-    </div>
+    {/if}
 </div>
 
 <style>

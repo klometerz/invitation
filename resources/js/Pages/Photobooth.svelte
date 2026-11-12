@@ -7,7 +7,20 @@
         reason = null,
         guestName = null,
         guestData = null,
+        meta = {},
     } = $props();
+
+    // P2-T2/P2-T4: frame text and share text come from the presenter.
+    const coupleNames = $derived(meta?.coupleNames || "");
+    const dateText = $derived(meta?.dateText || "");
+    const shareTitle = $derived(
+        coupleNames ? `Photobooth - ${coupleNames}` : "Photobooth",
+    );
+    const shareText = $derived(
+        coupleNames
+            ? `Momen kami di pernikahan ${coupleNames} 💕`
+            : "Momen kami di acara ini 💕",
+    );
 
     let videoEl = $state(null);
     let canvasEl = $state(null);
@@ -230,11 +243,15 @@
         ctx.fillStyle = "#d4af37";
         ctx.font = `${size * 0.04}px 'Cormorant Garamond', serif`;
         ctx.textAlign = "center";
-        ctx.fillText("Maulia & Kahfi", size / 2, size - borderWidth * 3.2);
+        if (coupleNames) {
+            ctx.fillText(coupleNames, size / 2, size - borderWidth * 3.2);
+        }
 
-        ctx.font = `${size * 0.022}px Inter, sans-serif`;
-        ctx.fillStyle = "rgba(212, 175, 55, 0.8)";
-        ctx.fillText("06 . 09 . 2026", size / 2, size - borderWidth * 1.8);
+        if (dateText) {
+            ctx.font = `${size * 0.022}px Inter, sans-serif`;
+            ctx.fillStyle = "rgba(212, 175, 55, 0.8)";
+            ctx.fillText(dateText, size / 2, size - borderWidth * 1.8);
+        }
     }
 
     function loadImage(src) {
@@ -336,19 +353,15 @@
         ctx.fillStyle = "#d4af37";
         ctx.textAlign = "center";
         ctx.font = `${width * 0.045}px 'Cormorant Garamond', serif`;
-        ctx.fillText(
-            "Maulia & Kahfi",
-            width / 2,
-            captionBaseY + captionSpace * 0.4,
-        );
+        if (coupleNames) {
+            ctx.fillText(coupleNames, width / 2, captionBaseY + captionSpace * 0.4);
+        }
 
-        ctx.font = `${width * 0.022}px Inter, sans-serif`;
-        ctx.fillStyle = "rgba(212, 175, 55, 0.8)";
-        ctx.fillText(
-            "06 . 09 . 2026",
-            width / 2,
-            captionBaseY + captionSpace * 0.85,
-        );
+        if (dateText) {
+            ctx.font = `${width * 0.022}px Inter, sans-serif`;
+            ctx.fillStyle = "rgba(212, 175, 55, 0.8)";
+            ctx.fillText(dateText, width / 2, captionBaseY + captionSpace * 0.85);
+        }
     }
 
     function renderPolaroidFrame(ctx, canvas, img) {
@@ -373,12 +386,16 @@
 
         ctx.fillStyle = "#2a2a2a";
         ctx.textAlign = "center";
-        ctx.font = `italic ${width * 0.06}px 'Cormorant Garamond', serif`;
-        ctx.fillText("Maulia & Kahfi", width / 2, topMargin + photoSize + 90);
+        if (coupleNames) {
+            ctx.font = `italic ${width * 0.06}px 'Cormorant Garamond', serif`;
+            ctx.fillText(coupleNames, width / 2, topMargin + photoSize + 90);
+        }
 
-        ctx.font = `${width * 0.03}px Inter, sans-serif`;
-        ctx.fillStyle = "#8a7a5c";
-        ctx.fillText("06 . 09 . 2026", width / 2, topMargin + photoSize + 130);
+        if (dateText) {
+            ctx.font = `${width * 0.03}px Inter, sans-serif`;
+            ctx.fillStyle = "#8a7a5c";
+            ctx.fillText(dateText, width / 2, topMargin + photoSize + 130);
+        }
     }
 
     function retake() {
@@ -468,13 +485,13 @@
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
-                    title: "Photobooth - Maulia & Kahfi",
-                    text: "Momen kami di pernikahan Maulia & Kahfi 💕",
+                    title: shareTitle,
+                    text: shareText,
                 });
             } else if (navigator.share) {
                 await navigator.share({
-                    title: "Photobooth - Maulia & Kahfi",
-                    text: "Momen kami di pernikahan Maulia & Kahfi 💕",
+                    title: shareTitle,
+                    text: shareText,
                 });
             } else {
                 alert(
