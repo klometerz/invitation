@@ -1,0 +1,45 @@
+﻿
+   INFO  Running migrations.  
+
+  2026_11_12_100000_create_packages_table ............................................................................  
+  ⇂ create table `packages` (`id` bigint unsigned not null auto_increment primary key, `name` varchar(255) not null, `slug` varchar(255) not null, `description` text null, `price` bigint unsigned null, `features` json null, `limits` json null, `is_public` tinyint(1) not null default '1', `is_active` tinyint(1) not null default '1', `sort_order` int not null default '0', `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci'  
+  ⇂ alter table `packages` add unique `packages_slug_unique`(`slug`)  
+  2026_11_12_100100_create_settings_table ............................................................................  
+  ⇂ create table `settings` (`id` bigint unsigned not null auto_increment primary key, `key` varchar(255) not null, `value` json null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci'  
+  ⇂ alter table `settings` add unique `settings_key_unique`(`key`)  
+  2026_11_12_100200_add_lifecycle_columns_to_invitations_table .......................................................  
+  ⇂ alter table `invitations` add `status` varchar(255) not null default 'draft'  
+  ⇂ alter table `invitations` add `package_id` bigint unsigned null  
+  ⇂ alter table `invitations` add constraint `invitations_package_id_foreign` foreign key (`package_id`) references `packages` (`id`) on delete set null  
+  ⇂ alter table `invitations` add `feature_overrides` json null  
+  ⇂ alter table `invitations` add `sections` json null  
+  ⇂ alter table `invitations` add `active_from` datetime null  
+  ⇂ alter table `invitations` add `active_until` datetime null  
+  ⇂ alter table `invitations` add `event_date` date null  
+  ⇂ alter table `invitations` add `client_name` varchar(255) null  
+  ⇂ alter table `invitations` add `client_phone` varchar(255) null  
+  ⇂ alter table `invitations` add `client_email` varchar(255) null  
+  ⇂ alter table `invitations` add `price_agreed` bigint unsigned null  
+  ⇂ alter table `invitations` add `payment_status` varchar(255) not null default 'unpaid'  
+  ⇂ alter table `invitations` add `amount_paid` bigint unsigned not null default '0'  
+  ⇂ alter table `invitations` add `paid_at` datetime null  
+  ⇂ alter table `invitations` add `internal_notes` text null  
+  ⇂ alter table `invitations` add `is_demo` tinyint(1) not null default '0'  
+  ⇂ alter table `invitations` add index `invitations_status_index`(`status`)  
+  2026_11_12_100300_add_registry_columns_to_themes_table .............................................................  
+  ⇂ alter table `themes` add `key` varchar(255) null  
+  ⇂ alter table `themes` add `description` text null  
+  ⇂ alter table `themes` add `is_active` tinyint(1) not null default '1'  
+  ⇂ alter table `themes` add unique `themes_key_unique`(`key`)  
+  2026_11_12_100400_add_role_and_invitation_id_to_users_table ........................................................  
+  ⇂ alter table `users` add `role` varchar(255) not null default 'staff'  
+  ⇂ alter table `users` add `invitation_id` bigint unsigned null  
+  ⇂ alter table `users` add constraint `users_invitation_id_foreign` foreign key (`invitation_id`) references `invitations` (`id`) on delete set null  
+  ⇂ alter table `users` add index `users_role_index`(`role`)  
+  2026_11_12_100500_add_invitation_id_to_galleries_table .............................................................  
+  ⇂ alter table `galleries` add `invitation_id` bigint unsigned null  
+  ⇂ alter table `galleries` add constraint `galleries_invitation_id_foreign` foreign key (`invitation_id`) references `invitations` (`id`) on delete cascade  
+  2026_11_12_100600_add_invitation_id_to_photobooth_photos_table .....................................................  
+  ⇂ alter table `photobooth_photos` add `invitation_id` bigint unsigned null  
+  ⇂ alter table `photobooth_photos` add constraint `photobooth_photos_invitation_id_foreign` foreign key (`invitation_id`) references `invitations` (`id`) on delete cascade  
+

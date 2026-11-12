@@ -33,9 +33,23 @@ class AuthenticatedSessionController extends Controller
             ])->onlyInput('email');
         }
 
+        // Deactivated accounts must not obtain a session (P1-T8).
+        if (! $request->user()->is_active) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'Akun ini sudah dinonaktifkan.',
+            ])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
-        return redirect()->intended('/admin/guests');
+        // Staff only have the scanner; the owner starts on the guest list.
+        $fallback = $request->user()->isAdmin() ? '/admin/guests' : '/admin/scanner';
+
+        return redirect()->intended($fallback);
     }
 
     /**

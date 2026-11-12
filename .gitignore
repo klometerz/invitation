@@ -3,6 +3,10 @@
 .env
 .env.backup
 .env.production
+# Local/dev env variants must never be committed (secrets)
+.env.local
+.env.*.bak
+.env.prod*.bak
 .phpactor.json
 .phpunit.result.cache
 /.fleet

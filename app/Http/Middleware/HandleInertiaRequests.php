@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Invitation;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -33,16 +35,46 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-            public function share(Request $request): array
-        {
-            return [
-                ...parent::share($request),
-                'auth' => [
-                    'user' => $request->user() ? [
-                        'name' => $request->user()->name,
-                        'email' => $request->user()->email,
-                    ] : null,
-                ],
-            ];
-        }
+    public function share(Request $request): array
+    {
+        $user = $request->user();
+        $tenantId = app(TenantContext::class)->id();
+        $tenant = $tenantId !== null ? Invitation::find($tenantId) : null;
+
+        return [
+            ...parent::share($request),
+            'auth' => [
+                'user' => $user ? [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'is_admin' => $user->isAdmin(),
+                ] : null,
+            ],
+            // Current tenant (null on public pages that resolve no tenant).
+            'tenant' => $tenant ? [
+                'id' => $tenant->id,
+                'title' => $tenant->title,
+                'slug' => $tenant->slug,
+                'features' => $tenant->featureFlags(),
+            ] : null,
+            // Event switcher options: owner only.
+            'invitations' => $user?->isAdmin()
+                ? Invitation::query()
+                    ->orderBy('id')
+                    ->get(['id', 'title', 'slug', 'status'])
+                    ->map(fn (Invitation $invitation) => [
+                        'id' => $invitation->id,
+                        'title' => $invitation->title,
+                        'slug' => $invitation->slug,
+                        'status' => $invitation->status,
+                    ])
+                    ->all()
+                : [],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+            ],
+        ];
+    }
 }

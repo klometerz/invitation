@@ -2,41 +2,60 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Gallery;
 use App\Models\Guest;
-use App\Models\Invitation; // Load Model Baru
+use App\Models\Invitation;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Inertia\Inertia;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
+/**
+ * Public invitation page: `/{slug}` and `/{slug}?guest=CODE`.
+ *
+ * The tenant is resolved by the `tenant.public` middleware, which stores the
+ * invitation on the request and sets TenantContext; every query below is
+ * therefore already restricted to this invitation.
+ */
 class WeddingController extends Controller
 {
-    /**
-     * Tampilkan halaman undangan berdasarkan slug
-     */
-    public function index(Request $request, $slug = 'maulia-kahfi') 
+    public function index(Request $request)
     {
-        // 1. Cari Undangan berdasarkan Slug
-        // Eager load theme biar kita tau folder svelte mana yang mau di-render
-        $invitation = Invitation::with('theme')
-            ->where('slug', $slug)
-            ->firstOrFail();
+        /** @var Invitation $invitation */
+        $invitation = $request->attributes->get('invitation');
 
-        // 2. Logic Data Tamu (Tetap lo pertahankan buat fitur RSVP)
+        if (! $invitation instanceof Invitation) {
+            abort(404);
+        }
+
         $guestCode = $request->query('guest');
-        // Pastiin tamu yang dicari emang terdaftar di undangan ini
-        $guest = Guest::where('invitation_id', $invitation->id)
-            ->where('guest_code', $guestCode)
-            ->first();
+        $guest = null;
 
-        // 3. Render ke Svelte secara dinamis
-        // Kita kirim data JSON 'content' ke frontend
+        if (is_string($guestCode) && $guestCode !== '') {
+            // Scoped by TenantContext: a code belonging to another invitation
+            // simply does not exist here (matrix row T5).
+            $guest = Guest::where('guest_code', $guestCode)->first();
+        }
+
+        if ($guest !== null) {
+            $qrUrl = url('/'.$invitation->slug.'?guest='.$guest->guest_code);
+            $guest->qrcode = QrCode::size(200)->margin(1)->generate($qrUrl)->toHtml();
+        }
+
+        $galleries = Gallery::orderBy('order')->get();
+
+        View::share('seo', [
+            'title' => $invitation->title ?: 'Undangan Pernikahan',
+            'description' => 'Anda diundang untuk hadir di acara pernikahan kami.',
+            'image' => $galleries->isNotEmpty() ? url($galleries->first()->path) : url('/mk.png'),
+            'url' => url()->current(),
+        ]);
+
         return Inertia::render('Wedding', [
             'invitation' => $invitation,
-            'content' => $invitation->content, // Ini data JSON dari Filament
-            'guestData' => $guest ? [
-                'name' => $guest->name,
-                'code' => $guest->guest_code,
-                'city' => $guest->city,
-            ] : null,
+            'content' => $invitation->content,
+            'guestData' => $guest,
+            'galleries' => $galleries,
         ]);
     }
 }

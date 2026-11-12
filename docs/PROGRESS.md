@@ -3,76 +3,82 @@
 Handoff document. Read this first in a new session, then `AGENTS.md` §0-6 and
 the current phase.
 
-Last updated: **2026-11-12** (Phase 0, session 1).
-Branch: `feature/multi-tenant`.
+Last updated: **2026-11-12** (Phase 1 complete, awaiting the gate).
+Branch: `feature/multi-tenant` — **changes are uncommitted on purpose: the
+owner asked to review before any commit.**
 
 ---
 
-## Phase 0 - Safety and audit
-
-| Task | Status | Commit | Notes |
-|---|---|---|---|
-| P0-T1 Git baseline | **DONE** | `ba6d81e` | `.gitignore` now ignores `/backups` and upload contents. Branch `feature/multi-tenant` created; `git branch --show-current` prints it. |
-| P0-T2 Backups | **DONE** | `b9451ca` | `backups/pre-multitenant-20261112.sql` + `backups/storage-public-20261112/` (27 files, 10.6 MB) + `docs/RESTORE.md`. Dump **restore-verified** against a scratch DB: 158/6/11/1/3/1/15. |
-| P0-T3 Test isolation | **DONE** | `b06b289` | `phpunit.xml` was already isolated on sqlite `:memory:`. Added `RefreshDatabase` to `ExampleTest`, the guard in `tests/TestCase.php`, and `TestDatabaseGuardTest` (4 cases). `php artisan test` -> **6 passed**. |
-| P0-T4 Audit | **DONE** | see below | `docs/AUDIT.md` + raw evidence. |
-| P0-T5 Docs scaffolding | **DONE** | see below | This file + `docs/DECISIONS.md`. |
-| GATE | **AWAITING APPROVAL** | - | Summary given in chat. |
-
-Verification for each task: `php artisan test` -> 6 passed (9 assertions);
-`npm run build` -> exit 0 (warnings are pre-existing).
-
----
-
-## Facts worth carrying forward
-
-- **Laravel 12.44.0**, PHP 8.3.16, MySQL 8.4.3, Node 22, PHPUnit 11.5, Vite 7,
-  Svelte 5, Tailwind 4. Filament is gone.
-- Real DB is the **local `invitation`** database (the `.env` also names a
-  remote `kald5548_invitation`, which is **not** used by this checkout and
-  must not be touched).
-- Live row counts (**exact** `COUNT(*)`): guests 158, galleries 6,
-  photobooth_photos 11, invitations 1, users 3, themes 1, migrations 15.
-- **Never** use `information_schema.table_rows` for verification - it is a
-  lagging estimate and caused a false "stale backup" alarm in this session.
-- Migrations **do** run on SQLite (all 15 apply under `RefreshDatabase`).
-- `themes` **already exists** (no `key`, no `is_active`; has `slug`,
-  `svelte_path`, `is_premium`).
-- `photobooth_photos` has **no** `invitation_id` - only `guest_id`.
-- Public URL is `/`; the slug page is `/v/{slug}`.
-- `POST /api/rsvp/{code}` lives in `routes/api.php`.
-- Hardcoded identities: 47 matches, all in `resources/`, none in `app/`.
-  Full file:line list in `docs/AUDIT.md` §6.
-- Dead code to remove in Phase 1: `GuestController copy.php`,
-  `routes/web.php:16-35` (commented closure), `Pages/* copy.svelte`.
-
----
-
-## Local command setup (Laragon binaries are not on PATH)
+## How to run things locally
 
 ```powershell
 $env:PATH = 'C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64;C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin;C:\laragon\bin\nodejs\node-v22;C:\laragon\bin\composer;' + $env:PATH
 ```
 
-`npm` cannot be invoked directly in this shell (its `.cmd` shim is not
-executable here); use `cmd /c "npm run build"`.
+- Any **DB‑touching** artisan command needs `--env=local` (the tracked `.env`
+  is a production copy). `npm` must be run as `cmd /c "npm run build"`.
+- Tests need no env flag: `phpunit.xml` forces sqlite `:memory:`.
 
 ---
 
-## Open owner questions (blocking Phase 1 detail work)
+## Phase 0 - Safety and audit
 
-From `docs/DECISIONS.md`:
+| Task | Status | Commit |
+|---|---|---|
+| P0-T1 Git baseline | DONE | `ba6d81e` |
+| P0-T2 Backups | DONE | `b9451ca` |
+| P0-T3 Test isolation | DONE | `b06b289` |
+| P0-T4 Audit | DONE | `2e51334` |
+| P0-T5 Docs | DONE | `2e51334` |
 
-1. **C1** - `themes` table shape: additive `key`/`is_active`, or replace
-   `slug`/`svelte_path`? (Recommendation: additive.)
-2. **C2** - may `/v/{slug}` be retired with a 301 to `/{slug}`, or must it stay?
-3. **C9** - leave the `create_theme_table` `down()` defect
-   (`dropIfExists('theme')`) alone? (Recommendation: leave it.)
+Backup verified by restoring it into a scratch DB (158/6/11/1/3/1/15).
 
 ---
 
-## Next actions (in order)
+## Phase 1 - Multi-tenant core
 
-1. Owner answers C1/C2/C9 and says "Phase 0 approved".
-2. Start Phase 1 with P1-T1 (additive migrations), `migrate --pretend` first.
-3. Cross-tenant hardening for `/admin/guests-truncate` (K2) - see `AUDIT.md` §11.
+**All tasks implemented. 37 tests / 146 assertions green. `npm run build` green.
+Nothing committed yet.**
+
+| Task | Status | What was built |
+|---|---|---|
+| P1-T1 Schema | DONE | 7 additive migrations: `packages`, `settings`, invitation lifecycle columns, additive `themes` columns, `users.role`+`invitation_id`, `galleries.invitation_id`, `photobooth_photos.invitation_id`. `guests` already had its FK. SQL reviewed with `--pretend` (`docs/migrate-pretend-p1t1.txt`). |
+| P1-T2 Backfill | DONE | `2026_11_12_110000_backfill_multi_tenant_data.php`: chunked raw `DB::table()` updates, derived photos via `guest_id`, users→`admin`, invitation→`active` + `event_date` 2026-09-06, seeded `heritage-gold` + Basic/Plus/Premium (`price = null`). Verified 0 NULL tenants, totals unchanged. |
+| P1-T3 Tenant core | DONE | `App\Support\TenantContext` (singleton), `App\Models\Scopes\TenantScope` (fails closed with `1 = 0`), `App\Models\Concerns\BelongsToInvitation` (auto-fills and throws), applied to Guest/Gallery/PhotoboothPhoto. `App\Exceptions\TenantContextMissingException`. |
+| P1-T4 Middleware/roles | DONE | `tenant.public`, `tenant.guestcode`, `tenant.admin`, `tenant.selected`, `role:admin,staff` aliases; `InvitationAccess` lifecycle helper; `User::isAdmin/isStaff/isClient`; `is_active` guard. |
+| P1-T5 Routing | DONE | 44 routes; `/{slug}` declared last and constrained; reserved slugs in `App\Support\SlugRules`; legacy `/?guest=`, `/photobooth?guest=` redirects; `/v/{slug}` 301; admin split into no-tenant and tenant groups; staff limited to scanner. |
+| P1-T6 Controllers | DONE | K1 (`Invitation::first` gone, editor never auto-creates, null-safe merge), K2 (`resetGuests` with slug confirmation), K3 (import matches `(invitation_id, name, city)`), K4 (gallery/photobooth/exports scoped). Uploads under `invitations/{id}/…`. Deleted `GuestController copy.php`. |
+| P1-T7 Shared props | DONE | `auth.user{name,role}`, `tenant{id,title,slug,features}`, `invitations` (admin), `flash`; `AdminLayout` event switcher + role/feature-filtered nav + flash→toast. |
+| P1-T8 Invitations/Users admin | DONE | `/admin/invitations` list + create/edit/duplicate/archive/switch; `/admin/users` create/edit/reset password/deactivate. New pages `InvitationIndex.svelte`, `InvitationForm.svelte`, `UserIndex.svelte`, `ResetGuestsModal.svelte`, `Pages/Empty.svelte`. |
+| P1-T9 Isolation tests | DONE | `tests/Feature/TenantIsolationTest.php` rows T1-T14, `TenantScopeTest`, `TenantContextTest`, plus 5 factories. |
+| P1-T10 Tighten schema | DONE | `2026_11_12_130000_make_tenant_columns_not_null.php`, pretend reviewed, NULL pre-check inside, skipped on SQLite. |
+
+### Extra migration not in the plan
+
+`2026_11_12_120000_add_is_active_to_users_table.php` — needed for P1-T8
+"deactivate". See `DECISIONS.md` P1-D.
+
+### Deliberately NOT done (later phases)
+
+- Expired page is HTTP 410, not a styled page (P3-T2).
+- `config/features.php`, `feature:{key}` middleware and real limit enforcement
+  (P2-T1/P3-T3). Phase 1 only ships `Invitation::featureFlags()/hasFeature()/limit()`
+  and uses them for the shared `tenant.features` prop.
+- Public Inertia props still send raw `Invitation`/`Guest` models (K6, P2-T5).
+- Hardcoded names/dates/logo still present (K9, P2-T2).
+- `app.js` still eager-loads pages (K10, P2-T6).
+- `/admin` has no dashboard route yet (P3-T8), so it 404s. Login sends the
+  owner to `/admin/guests` and staff to `/admin/scanner`.
+- `resources/js/Pages/* copy.svelte` leftovers were not deleted.
+
+---
+
+## Open questions for the owner
+
+1. **Commit strategy** — the whole Phase 1 diff is uncommitted. Review it, then
+   either approve the one-commit-per-task plan or ask for a single commit.
+2. **Owner decision #2** (AGENTS §11) — does `maul-kahfi` stay `active` as a
+   portfolio piece? Right now it is `active` and is the `/` showcase.
+3. **Theme mapping** — the existing wedding still points at theme `aurum-noctis`
+   (`svelte_path = Wedding`); a separate `heritage-gold` row was seeded. P2-T6
+   should decide whether the live wedding is repointed to `heritage-gold`.

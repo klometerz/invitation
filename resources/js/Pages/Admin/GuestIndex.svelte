@@ -5,9 +5,10 @@
     import AdminLayout from "../../Components/Admin/AdminLayout.svelte";
     import Toast from "../../Components/Admin/Toast.svelte";
     import ConfirmModal from "../../Components/Admin/ConfirmModal.svelte";
+    import ResetGuestsModal from "../../Components/Admin/ResetGuestsModal.svelte";
     import { toast } from "../../Components/Admin/toast.js";
 
-    let { guests, summary, filters, categories } = $props();
+    let { guests, summary, filters, categories, invitation } = $props();
     let fileInput = $state(null);
     let isUploading = $state(false);
     let copyStatus = $state(null);
@@ -54,18 +55,17 @@
     }
 
     function handleDeleteAll() {
-        showConfirm({
-            title: "Kosongkan Semua Data?",
-            message:
-                "Semua data tamu akan dihapus permanen dan ID akan direset ke 1. Tindakan ini tidak bisa dibatalkan.",
-            variant: "danger",
-            onConfirm: () => {
-                router.delete("/admin/guests-truncate", {
-                    onSuccess: () =>
-                        toast("Semua data tamu berhasil dihapus.", "success"),
-                    onError: () => toast("Gagal menghapus data.", "error"),
-                });
-            },
+        resetOpen = true;
+    }
+
+    let resetOpen = $state(false);
+
+    function handleResetConfirmed(confirmSlug) {
+        router.delete("/admin/guests/reset", {
+            data: { confirm_slug: confirmSlug },
+            onSuccess: () => toast("Data tamu acara ini telah dihapus.", "success"),
+            onError: () =>
+                toast("Gagal menghapus: slug konfirmasi tidak cocok.", "error"),
         });
     }
 
@@ -268,6 +268,13 @@
             ? "Ya, Hapus"
             : "Konfirmasi"}
         onConfirm={confirmConfig.onConfirm}
+    />
+
+    <ResetGuestsModal
+        bind:open={resetOpen}
+        slug={invitation?.slug ?? ""}
+        count={guests.total}
+        onConfirm={handleResetConfirmed}
     />
 
     <!-- PAGE TITLE + TOOLBAR -->

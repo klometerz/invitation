@@ -2,36 +2,37 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToInvitation;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-class Guest extends Model {
+class Guest extends Model
+{
+    /** @use HasFactory<\Database\Factories\GuestFactory> */
+    use BelongsToInvitation, HasFactory;
+
     // TAMBAHIN is_rsvp dan attendance di sini
     protected $fillable = [
         'invitation_id', 'name', 'city', 'category', 'guest_code', 'quota',
         'is_rsvp', 'attendance', 'message',
-        'checkin_status', 'checked_in_at', 'actual_guest_count', 'checked_in_by'
+        'checkin_status', 'checked_in_at', 'actual_guest_count', 'checked_in_by',
     ];
 
     protected $casts = [
         'checked_in_at' => 'datetime',
     ];
 
-    protected static function booted() {
+    protected static function booted()
+    {
         static::creating(function ($guest) {
             // Generate kode: mk-nama-random5char
-            $guest->guest_code = Str::slug($guest->name) . '-' . Str::lower(Str::random(5));
+            $guest->guest_code = Str::slug($guest->name).'-'.Str::lower(Str::random(5));
         });
     }
-    // Di dalam class Guest extends Model
-public function invitation(): BelongsTo
-{
-    return $this->belongsTo(Invitation::class);
-}
 
-public function photoboothPhotos(): \Illuminate\Database\Eloquent\Relations\HasMany
-{
-    return $this->hasMany(PhotoboothPhoto::class);
-}
+    public function photoboothPhotos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PhotoboothPhoto::class);
+    }
 }

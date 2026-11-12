@@ -1,43 +1,107 @@
 <script>
     import { page, router } from "@inertiajs/svelte";
+    import Toast from "./Toast.svelte";
+    import { toast } from "./toast.js";
 
     let { title = "Dashboard", breadcrumbs = [], children } = $props();
 
     let sidebarOpen = $state(true);
     let mobileSidebarOpen = $state(false);
 
+    // `roles` limits an entry to specific roles; `feature` hides it when the
+    // selected package disables that feature. Role checks are ALSO enforced
+    // server-side - this only keeps the UI honest.
     const navItems = [
+        {
+            label: "Invitations",
+            href: "/admin/invitations",
+            roles: ["admin"],
+            icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+        },
         {
             label: "Guests",
             href: "/admin/guests",
+            roles: ["admin"],
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
         },
         {
             label: "Gallery",
             href: "/admin/gallery",
+            roles: ["admin"],
+            feature: "gallery",
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
         },
         {
             label: "Invitation",
             href: "/admin/invitation",
+            roles: ["admin"],
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
         },
         {
             label: "Scanner",
             href: "/admin/scanner",
+            roles: ["admin", "staff"],
+            feature: "guestbook",
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
         },
-
         {
             label: "Photobooth",
             href: "/admin/photobooth",
+            roles: ["admin"],
+            feature: "photobooth",
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>`,
         },
+        {
+            label: "Users",
+            href: "/admin/users",
+            roles: ["admin"],
+            icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+        },
     ];
+
+    const user = $derived($page.props.auth?.user ?? null);
+    const tenant = $derived($page.props.tenant ?? null);
+    const features = $derived(tenant?.features ?? {});
+    const invitations = $derived($page.props.invitations ?? []);
+    const isAdmin = $derived(user?.role === "admin");
+
+    const visibleNav = $derived(
+        navItems.filter((item) => {
+            if (!user) return false;
+            if (item.roles && !item.roles.includes(user.role)) return false;
+            if (item.feature && features[item.feature] === false) return false;
+            return true;
+        }),
+    );
+
+    // Flash -> toast, once per message.
+    let lastSuccess = "";
+    let lastError = "";
+    $effect(() => {
+        const success = $page.props.flash?.success;
+        if (success && success !== lastSuccess) {
+            lastSuccess = success;
+            toast(success, "success");
+        }
+        const error = $page.props.flash?.error;
+        if (error && error !== lastError) {
+            lastError = error;
+            toast(error, "error");
+        }
+    });
 
     function isActive(href) {
         if (typeof window === "undefined") return false;
         return window.location.pathname.startsWith(href);
+    }
+
+    function switchEvent(value) {
+        if (!value) return;
+        router.post(
+            "/admin/tenant/switch",
+            { invitation_id: Number(value) },
+            { preserveScroll: true },
+        );
     }
 
     function handleLogout() {
@@ -83,7 +147,7 @@
         </div>
 
         <nav class="sidebar-nav">
-            {#each navItems as item}
+            {#each visibleNav as item}
                 <a
                     href={item.href}
                     class="nav-item"
@@ -216,6 +280,24 @@
             </div>
 
             <div class="header-right">
+                {#if isAdmin && invitations.length > 0}
+                    <select
+                        class="event-switcher"
+                        value={tenant?.id ?? ""}
+                        onchange={(e) => switchEvent(e.currentTarget.value)}
+                        title="Pilih acara"
+                        aria-label="Pilih acara"
+                    >
+                        {#if !tenant}
+                            <option value="" disabled>Pilih acara…</option>
+                        {/if}
+                        {#each invitations as invitation (invitation.id)}
+                            <option value={invitation.id}>
+                                {invitation.title}
+                            </option>
+                        {/each}
+                    </select>
+                {/if}
                 <div class="user-info">
                     <div
                         class="header-avatar"
@@ -259,6 +341,8 @@
         </main>
     </div>
 </div>
+
+<Toast />
 
 <style>
     @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
@@ -528,6 +612,31 @@
         display: flex;
         align-items: center;
         gap: 8px;
+    }
+
+    .event-switcher {
+        height: 34px;
+        max-width: 220px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .event-switcher:focus {
+        outline: 2px solid var(--primary-light);
+        border-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .event-switcher {
+            max-width: 130px;
+        }
     }
 
     .user-name {
