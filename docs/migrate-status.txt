@@ -1,0 +1,24 @@
+﻿
+   UnexpectedValueException 
+
+  The stream or file "C:\laragon\www\invitation\storage\logs/laravel.log" could not be opened in append mode: Failed to open stream: Permission denied
+The exception occurred while attempting to log: SQLSTATE[HY000] [1524] Plugin 'mysql_native_password' is not loaded (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+Context: {"exception":{"errorInfo":["HY000",1524,"Plugin 'mysql_native_password' is not loaded"],"connectionName":"mysql"}}
+
+  at vendor\monolog\monolog\src\Monolog\Handler\StreamHandler.php:156
+    152▕             }
+    153▕             if (!\is_resource($stream)) {
+    154▕                 $this->stream = null;
+    155▕ 
+  ➜ 156▕                 throw new \UnexpectedValueException(sprintf('The stream or file "%s" could not be opened in append mode: '.$this->errorMessage, $url) . Utils::getRecordMessageForException($record));
+    157▕             }
+    158▕             stream_set_chunk_size($stream, $this->streamChunkSize);
+    159▕             $this->stream = $stream;
+    160▕         }
+
+  1   vendor\monolog\monolog\src\Monolog\Handler\AbstractProcessingHandler.php:44
+      Monolog\Handler\StreamHandler::write(Object(Monolog\LogRecord))
+
+  2   vendor\monolog\monolog\src\Monolog\Logger.php:391
+      Monolog\Handler\AbstractProcessingHandler::handle(Object(Monolog\LogRecord))
+

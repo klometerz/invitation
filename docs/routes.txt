@@ -1,0 +1,33 @@
+﻿
+  GET|HEAD  / ........................................................................................................ 
+  GET|HEAD  admin/gallery .............................................. admin.gallery.index › GalleryController@index
+  POST      admin/gallery .............................................. admin.gallery.store › GalleryController@store
+  DELETE    admin/gallery/{id} ..................................... admin.gallery.destroy › GalleryController@destroy
+  GET|HEAD  admin/guests .................................................. admin.guests.index › GuestController@index
+  POST      admin/guests .................................................. admin.guests.store › GuestController@store
+  DELETE    admin/guests-truncate ................................... admin.guests.truncate › GuestController@truncate
+  GET|HEAD  admin/guests/export ......................................... admin.guests.export › GuestController@export
+  POST      admin/guests/import ......................................... admin.guests.import › GuestController@import
+  GET|HEAD  admin/guests/print-labels ............................... admin.guests.print › GuestController@printLabels
+  DELETE    admin/guests/{id} ......................................... admin.guests.destroy › GuestController@destroy
+  PUT       admin/guests/{id} ........................................... admin.guests.update › GuestController@update
+  GET|HEAD  admin/invitation ................................. admin.invitation.edit › Admin\InvitationController@edit
+  POST      admin/invitation ............................. admin.invitation.update › Admin\InvitationController@update
+  GET|HEAD  admin/photobooth ................................ admin.photobooth.index › PhotoboothController@adminIndex
+  GET|HEAD  admin/photobooth/print ........................... admin.photobooth.print › PhotoboothController@printView
+  DELETE    admin/photobooth/{id} ............................ admin.photobooth.destroy › PhotoboothController@destroy
+  GET|HEAD  admin/scanner ........................................ admin.scanner.index › Admin\ScannerController@index
+  POST      admin/scanner/checkin ............................ admin.scanner.checkin › Admin\ScannerController@checkin
+  GET|HEAD  admin/scanner/stats ............................. admin.scanner.stats › Admin\ScannerController@todayStats
+  GET|HEAD  api/guests/{code} ................................................................... GuestController@show
+  POST      api/rsvp/{code} ............................................................... GuestController@updateRsvp
+  GET|HEAD  api/user ................................................................................................. 
+  GET|HEAD  login ................................................. login › Auth\AuthenticatedSessionController@create
+  POST      login .......................................................... Auth\AuthenticatedSessionController@store
+  POST      logout .............................................. logout › Auth\AuthenticatedSessionController@destroy
+  GET|HEAD  photobooth .................................................................... PhotoboothController@index
+  POST      photobooth/capture ............................................................ PhotoboothController@store
+  GET|HEAD  v/{slug} ................................................................................... wedding.index
+
+                                                                                                   Showing [29] routes
+
